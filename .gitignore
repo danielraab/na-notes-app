@@ -1,0 +1,20 @@
+# Env
+.env
+
+# Go
+backend-go/bin/
+backend-go/*.db
+backend-go/*.db-journal
+backend-go/*.db-wal
+backend-go/*.db-shm
+
+# Node / React
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.vite/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

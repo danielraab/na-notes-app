@@ -1,0 +1,637 @@
+openapi: 3.1.0
+info:
+  title: NA Notes API
+  description: >
+    Shared REST contract implemented identically by every backend-* folder
+    in this repository, and consumed identically by every frontend-*
+    folder. See /docs/adr for the reasoning behind the auth, pagination
+    and concurrency design used here.
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Relative to whichever origin the backend is deployed on.
+
+tags:
+  - name: auth
+  - name: notes
+  - name: sharing
+  - name: users
+  - name: public
+
+security:
+  - sessionCookie: []
+
+paths:
+  /auth/login:
+    get:
+      tags: [auth]
+      operationId: startLogin
+      summary: Start OIDC login
+      description: >
+        Redirects the browser to the configured OIDC provider's
+        authorization endpoint. Not an XHR endpoint; the frontend
+        navigates the browser here (e.g. `window.location.href`).
+      security: []
+      parameters:
+        - name: redirectTo
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Path within the frontend to return to after login.
+      responses:
+        "302":
+          description: Redirect to the OIDC provider.
+
+  /auth/callback:
+    get:
+      tags: [auth]
+      operationId: handleLoginCallback
+      summary: OIDC provider redirects back here after authentication
+      description: Completes the authorization code exchange and establishes a session.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: >
+            Sets the session cookie and CSRF cookie, then redirects to the
+            frontend's `redirectTo` (or homepage).
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Invalidate the current session
+      description: Deletes the server-side session and clears the session and CSRF cookies.
+      responses:
+        "204":
+          description: Logged out; session and CSRF cookies cleared.
+
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: getCurrentUser
+      summary: Current authenticated user, or 401 if not logged in
+      description: Returns the caller's own account, resolved from the session cookie.
+      security: []
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/search:
+    get:
+      tags: [users]
+      operationId: searchUsers
+      summary: Search users by name/email prefix, for mentions and sharing
+      description: Used to power @-mention and share-with-user autocomplete.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 25
+      responses:
+        "200":
+          description: Matching users (own account excluded)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /notes:
+    get:
+      tags: [notes]
+      operationId: listNotes
+      summary: List notes visible to the current user (dashboard feed)
+      description: >
+        Owned notes and notes shared with the current user, newest edited
+        first, cursor-paginated. See ADR 0007.
+      security: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Opaque cursor from a previous response's nextCursor.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 12
+            maximum: 50
+      responses:
+        "200":
+          description: >
+            A page of notes. If the caller is unauthenticated, returns a
+            single fixed sample note and an empty nextCursor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotePage"
+    post:
+      tags: [notes]
+      operationId: createNote
+      summary: Create a note
+      description: Creates a note owned by the caller.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/CsrfRejected"
+
+  /notes/{noteId}:
+    parameters:
+      - name: noteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [notes]
+      operationId: getNote
+      summary: Get a single note (owner or user it's shared with)
+      description: Returns 404 (not 403) if the caller has no access, to avoid revealing existence.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [notes]
+      operationId: updateNote
+      summary: Update a note's title/content
+      description: >
+        Requires the version the client last read, for optimistic
+        concurrency (ADR 0008). Only the owner or a user with "editable"
+        access may call this.
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The `version` of the note the client last read.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: >
+            Version conflict — the note changed since the client last read
+            it. Body contains the current server copy of the note.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+    delete:
+      tags: [notes]
+      operationId: deleteNote
+      summary: Delete a note (owner only)
+      description: Permanently deletes the note and its shares.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /notes/{noteId}/shares:
+    parameters:
+      - name: noteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [sharing]
+      operationId: listNoteShares
+      summary: List a note's shares (owner only)
+      description: Returns per-user shares and the public share, if any.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userShares:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserShare"
+                  publicShare:
+                    oneOf:
+                      - $ref: "#/components/schemas/PublicShare"
+                      - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [sharing]
+      operationId: createNoteShare
+      summary: Share a note with a specific user (owner only)
+      description: Sends a share notification email to the target user (see ADR on mail notifications in README).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, permission]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                permission:
+                  $ref: "#/components/schemas/SharePermission"
+      responses:
+        "201":
+          description: Share created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserShare"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /notes/{noteId}/shares/{userId}:
+    parameters:
+      - name: noteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [sharing]
+      operationId: deleteNoteShare
+      summary: Revoke a user's share (owner only)
+      description: Removes a previously granted per-user share.
+      responses:
+        "204":
+          description: Revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /notes/{noteId}/public-share:
+    parameters:
+      - name: noteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [sharing]
+      operationId: createPublicShare
+      summary: Publish a note publicly (read-only), owner only
+      description: Generates a new unguessable share token (ADR 0009).
+      responses:
+        "201":
+          description: Public share created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicShare"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      tags: [sharing]
+      operationId: deletePublicShare
+      summary: Revoke public sharing, owner only
+      description: Invalidates the current public share token; the note is no longer publicly readable.
+      responses:
+        "204":
+          description: Revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /public/notes/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [public]
+      operationId: getPublicNote
+      summary: Read a publicly shared note, unauthenticated
+      description: Looks up a note solely by its unguessable public share token (ADR 0009).
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicNoteView"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: >
+        Opaque server-side session identifier, HttpOnly + Secure +
+        SameSite=Lax (ADR 0004). State-changing requests additionally
+        require the csrfToken security requirement below.
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: >
+        Must match the value of the non-HttpOnly `csrf_token` cookie
+        (ADR 0005). Required on POST/PUT/PATCH/DELETE.
+
+  responses:
+    Unauthorized:
+      description: Not logged in
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Logged in, but not permitted to perform this action
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource does not exist (or is not visible to the caller)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    CsrfRejected:
+      description: Missing/invalid X-CSRF-Token header
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable error code, e.g. VERSION_CONFLICT.
+            message:
+              type: string
+
+    User:
+      type: object
+      required: [id, email, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    UserSummary:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    SharePermission:
+      type: string
+      enum: [read, edit]
+
+    UserShare:
+      type: object
+      required: [user, permission, createdAt]
+      properties:
+        user:
+          $ref: "#/components/schemas/UserSummary"
+        permission:
+          $ref: "#/components/schemas/SharePermission"
+        createdAt:
+          type: string
+          format: date-time
+
+    PublicShare:
+      type: object
+      required: [token, url, createdAt]
+      properties:
+        token:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Fully qualified public view URL for the frontend to display.
+        createdAt:
+          type: string
+          format: date-time
+
+    NoteInput:
+      type: object
+      required: [title, contentMarkdown]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        contentMarkdown:
+          type: string
+          description: >
+            Source of truth for note content. Always Markdown; rich-text
+            editors (if an implementation adds one) must serialize to/from
+            this field. Mentions are written inline as `@[displayName](userId)`.
+        mentionedUserIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >
+            User IDs mentioned in contentMarkdown, explicitly listed so the
+            backend can send mention notifications without re-parsing
+            markdown to resolve ambiguous display names.
+
+    Note:
+      type: object
+      required:
+        [id, title, contentMarkdown, ownerId, version, myPermission, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        contentMarkdown:
+          type: string
+        ownerId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Optimistic concurrency token (ADR 0008).
+        myPermission:
+          type: string
+          enum: [owner, edit, read]
+          description: The current caller's access level on this note.
+        isPublic:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    NoteSummary:
+      type: object
+      required: [id, title, ownerId, myPermission, updatedAt]
+      description: Trimmed representation used in dashboard listings (no full body).
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        excerpt:
+          type: string
+          description: Short plain-text preview derived from contentMarkdown.
+        ownerId:
+          type: string
+          format: uuid
+        myPermission:
+          type: string
+          enum: [owner, edit, read]
+        isPublic:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+
+    NotePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoteSummary"
+        nextCursor:
+          type: string
+          nullable: true
+
+    PublicNoteView:
+      type: object
+      required: [title, contentMarkdown, updatedAt]
+      description: Deliberately excludes owner identity/id and version — read-only, minimal.
+      properties:
+        title:
+          type: string
+        contentMarkdown:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time

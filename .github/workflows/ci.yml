@@ -1,0 +1,57 @@
+name: CI
+
+# Each implementation gets its own independent job, per /docs/adr — a
+# backend or frontend must build and test on its own, with no dependency
+# on any other implementation. When a new backend-*/frontend-* folder is
+# added, add a job for it here rather than extending an existing one.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  openapi-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npx --yes @stoplight/spectral-cli lint openapi/openapi.yaml
+
+  backend-go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend-go/go.mod
+      - run: go build ./...
+      - run: go vet ./...
+      - run: gofmt -l . | tee /tmp/gofmt.out && test ! -s /tmp/gofmt.out
+      - run: go test ./...
+      - name: Build Docker image
+        run: docker build -t na-notes-backend-go .
+
+  frontend-react:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend-react/package-lock.json
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npx oxlint
+      - run: npm test
+      - run: npm run build
+      - name: Build Docker image
+        run: docker build -t na-notes-frontend-react .
