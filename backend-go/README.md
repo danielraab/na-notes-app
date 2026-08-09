@@ -24,7 +24,11 @@ choices and the internal package layout.
 ```bash
 cd backend-go
 cp ../.env.example .env   # or export the variables another way
-export $(grep -v '^#' .env | xargs)
+mkdir data
+# set DATABASE_PATH=./data/notes.db in .env
+set -a
+source .env
+set +a
 go run ./cmd/server
 ```
 
