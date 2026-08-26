@@ -13,6 +13,7 @@ FROM alpine:3.20
 RUN adduser -D -H app
 WORKDIR /app
 COPY --from=build /out/server ./server
+RUN mkdir -p /data && chown app:app /data
 VOLUME ["/data"]
 ENV DATABASE_PATH=/data/notes.db
 ENV LISTEN_ADDR=:8080
