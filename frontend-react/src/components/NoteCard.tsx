@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
 import type { NoteSummary } from '../api/types';
+import { extractMentionedUserIds } from '../utils/mentions';
+import { setTaskItemChecked } from '../utils/taskList';
 import { MarkdownView } from './MarkdownView';
 
 const PERMISSION_LABEL: Record<NoteSummary['myPermission'], string> = {
@@ -12,6 +16,8 @@ const PERMISSION_LABEL: Record<NoteSummary['myPermission'], string> = {
 export function NoteCard({ note }: { note: NoteSummary }) {
   const navigate = useNavigate();
   const href = `/notes/${note.id}`;
+  const [content, setContent] = useState(note.contentMarkdown);
+  const canEdit = note.myPermission !== 'read';
 
   // The card renders the full note, which can itself contain <a> tags, so
   // the card can't be an <a>. The title link is the accessible navigation
@@ -22,6 +28,27 @@ export function NoteCard({ note }: { note: NoteSummary }) {
     if ((e.target as HTMLElement).closest('a')) return;
     if (window.getSelection()?.toString()) return;
     navigate(href);
+  }
+
+  // NoteSummary carries neither the note version nor its mentions, so a
+  // checkbox toggle re-fetches the note, applies the same toggle to the
+  // authoritative body, and saves that. The card updates optimistically
+  // and rolls back if the write fails.
+  async function handleToggleTask(index: number, checked: boolean) {
+    const previous = content;
+    setContent(setTaskItemChecked(previous, index, checked));
+    try {
+      const full = await api.getNote(note.id);
+      const nextMarkdown = setTaskItemChecked(full.contentMarkdown, index, checked);
+      const saved = await api.updateNote(note.id, full.version, {
+        title: full.title,
+        contentMarkdown: nextMarkdown,
+        mentionedUserIds: extractMentionedUserIds(nextMarkdown),
+      });
+      setContent(saved.contentMarkdown);
+    } catch {
+      setContent(previous);
+    }
   }
 
   return (
@@ -35,7 +62,11 @@ export function NoteCard({ note }: { note: NoteSummary }) {
         </Link>
       </h3>
       <div className="relative max-h-96 overflow-hidden">
-        <MarkdownView markdown={note.contentMarkdown} className="markdown-view--card" />
+        <MarkdownView
+          markdown={content}
+          className="markdown-view--card"
+          onToggleTask={canEdit ? handleToggleTask : undefined}
+        />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas-subtle" />
       </div>
       <div className="mt-3 flex gap-2.5 text-xs text-fg-muted">

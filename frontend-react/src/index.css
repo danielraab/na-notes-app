@@ -128,6 +128,17 @@
   .markdown-view blockquote {
     @apply border-l-2 border-line pl-3 text-fg-muted;
   }
+  /* GFM task list items: drop the list marker and hang the checkbox where
+     it would have been. */
+  .markdown-view li:has(> input[type='checkbox']:first-child) {
+    @apply list-none -ml-6;
+  }
+  .markdown-view li > input[type='checkbox']:first-child {
+    @apply mr-2 align-middle;
+  }
+  .markdown-view li > input[type='checkbox']:first-child:not(:disabled) {
+    @apply cursor-pointer;
+  }
 
   /* Compact variant for dashboard note cards: same sanitized render path,
      but headings and spacing scaled down so a note preview stays card-sized. */
