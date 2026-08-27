@@ -19,6 +19,7 @@ type Config struct {
 
 	// Session / CSRF
 	SessionSecret string
+	CookieDomain  string
 
 	// OIDC
 	OIDCIssuerURL    string
@@ -45,6 +46,7 @@ func Load() (*Config, error) {
 		FrontendURL:      getEnv("FRONTEND_URL", "http://localhost:5173"),
 		AllowedOrigins:   splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:5173")),
 		SessionSecret:    os.Getenv("SESSION_SECRET"),
+		CookieDomain:     os.Getenv("COOKIE_DOMAIN"),
 		OIDCIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		OIDCClientID:     os.Getenv("OIDC_CLIENT_ID"),
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),

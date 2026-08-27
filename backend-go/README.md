@@ -23,7 +23,7 @@ choices and the internal package layout.
 
 ```bash
 cd backend-go
-cp ../.env.example .env   # or export the variables another way
+cp .env.example .env   # or export the variables another way
 mkdir data
 # set DATABASE_PATH=./data/notes.db in .env
 set -a
@@ -38,10 +38,18 @@ automatically on startup.
 
 ## Configuration
 
-All configuration is environment variables — see the root
-[`.env.example`](../.env.example) for the full, shared list. Required:
+All configuration is environment variables — see
+[`.env.example`](.env.example) in this folder for the full list. Every
+backend implementation in this repo must accept these exact variable
+names (see [ADR 0011](../docs/adr/0011-per-implementation-env-files.md)),
+so swapping backends via `docker-compose.yml`'s `build.context` doesn't
+mean re-deriving config. Required:
 `SESSION_SECRET`, `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`,
-`OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URL`.
+`OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URL`. `COOKIE_DOMAIN` is optional and
+only needed when the frontend and backend are deployed on different
+subdomains of the same parent domain — without it, the CSRF double-submit
+cookie is a frontend-unreadable host-only cookie on the backend's hostname
+and every state-changing request fails with `CSRF_REJECTED`.
 
 ## Project layout
 
@@ -77,7 +85,7 @@ correctness under interleaved pages.
 
 ```bash
 docker build -t na-notes-backend-go .
-docker run --rm -p 8080:8080 --env-file ../.env -v notes-data:/data na-notes-backend-go
+docker run --rm -p 8080:8080 --env-file .env -v notes-data:/data na-notes-backend-go
 ```
 
 The image is a multi-stage build: compiles a static (`CGO_ENABLED=0`)

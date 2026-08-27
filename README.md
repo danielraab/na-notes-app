@@ -62,7 +62,8 @@ See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 ## Running the default stack (backend-go + frontend-react)
 
 ```bash
-cp .env.example .env   # fill in your OIDC provider + SMTP credentials
+cp backend-go/.env.example backend-go/.env   # fill in your OIDC provider + SMTP credentials
+cp frontend-react/.env.example frontend-react/.env
 docker compose up --build
 ```
 
@@ -81,9 +82,13 @@ conventions and environment variables, so no other change is needed.
 
 ## Configuration
 
-All configuration is environment variables, shared by every backend so
-swapping implementations doesn't mean re-deriving config. See
-`.env.example` for the full list; the important ones:
+All configuration is environment variables. Backend variable *names* are
+shared by every backend implementation so swapping implementations
+doesn't mean re-deriving config, but each implementation owns its own
+`.env.example` — see `backend-go/.env.example` and
+`frontend-react/.env.example` for the full lists (
+[ADR 0011](docs/adr/0011-per-implementation-env-files.md)). The important
+backend ones:
 
 | Variable | Purpose |
 |---|---|

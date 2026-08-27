@@ -23,13 +23,14 @@ choices.
 ```bash
 cd frontend-react
 npm install
-VITE_API_BASE_URL=http://localhost:8080/api npm run dev
+cp .env.example .env   # or: VITE_API_BASE_URL=http://localhost:8080/api npm run dev
+npm run dev
 ```
 
 The dev server runs on `http://localhost:5173`. It must be pointed at a
 running backend (see `../backend-go/README.md`) whose `ALLOWED_ORIGINS`
 includes `http://localhost:5173` and whose `FRONTEND_URL` is also
-`http://localhost:5173` (see the root `.env.example`).
+`http://localhost:5173` (see `../backend-go/.env.example`).
 
 **Use the same hostname (`localhost`) for both frontend and backend during
 local development.** The session cookie is `SameSite=Lax`; mixing

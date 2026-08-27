@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0011](0011-per-implementation-env-files.md) (single
+root `.env` file replaced by per-implementation `.env.example` files).
+The rest of this ADR — one root `docker-compose.yml`, swap implementations
+via `build.context`, one named volume for the SQLite file — still stands.
 
 ## Context
 

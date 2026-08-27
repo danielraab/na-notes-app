@@ -35,3 +35,11 @@ against the backend.
   origin (documented per implementation).
 - Public, read-only endpoints (e.g. viewing a publicly shared note) are
   unauthenticated `GET`s and are naturally exempt from CSRF checks.
+- The double-submit pattern only works if the frontend's JS can actually
+  read the `csrf_token` cookie. Without an explicit cookie `Domain`, it's
+  host-only and scoped to whichever hostname served the response. If
+  frontend and backend are deployed on different subdomains, every backend
+  must support a `COOKIE_DOMAIN` env var (set to the shared parent domain,
+  e.g. `.example.com`) that it applies to both the session and CSRF
+  cookies — otherwise every state-changing request fails CSRF validation
+  in production even though the session cookie itself works fine.

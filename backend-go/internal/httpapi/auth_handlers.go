@@ -70,6 +70,7 @@ func (d *Deps) handleCallback(w http.ResponseWriter, r *http.Request) {
 		Name:     SessionCookieName,
 		Value:    session.ID,
 		Path:     "/",
+		Domain:   d.Config.CookieDomain,
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
@@ -77,10 +78,14 @@ func (d *Deps) handleCallback(w http.ResponseWriter, r *http.Request) {
 	})
 	// Readable by frontend JS on purpose — it's echoed back as the
 	// X-CSRF-Token header, never trusted as an identity credential itself.
+	// Domain defaults to "" (host-only cookie); set COOKIE_DOMAIN when the
+	// frontend and backend are on different subdomains of the same parent
+	// domain, or the frontend's JS can never read this cookie to echo it.
 	http.SetCookie(w, &http.Cookie{
 		Name:     CSRFCookieName,
 		Value:    session.CSRFToken,
 		Path:     "/",
+		Domain:   d.Config.CookieDomain,
 		HttpOnly: false,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
@@ -94,13 +99,13 @@ func (d *Deps) handleLogout(w http.ResponseWriter, r *http.Request, userID strin
 	if cookie, err := r.Cookie(SessionCookieName); err == nil {
 		_ = d.AuthStore.DeleteSession(r.Context(), cookie.Value)
 	}
-	clearCookie(w, SessionCookieName)
-	clearCookie(w, CSRFCookieName)
+	clearCookie(w, SessionCookieName, d.Config.CookieDomain)
+	clearCookie(w, CSRFCookieName, d.Config.CookieDomain)
 	respondNoContent(w)
 }
 
-func clearCookie(w http.ResponseWriter, name string) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1})
+func clearCookie(w http.ResponseWriter, name, domain string) {
+	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", Domain: domain, MaxAge: -1})
 }
 
 func (d *Deps) handleMe(w http.ResponseWriter, r *http.Request, userID string) {
