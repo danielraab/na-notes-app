@@ -34,7 +34,7 @@ export function NoteCard({ note }: { note: NoteSummary }) {
           {note.title}
         </Link>
       </h3>
-      <div className="relative max-h-56 overflow-hidden">
+      <div className="relative max-h-96 overflow-hidden">
         <MarkdownView markdown={note.contentMarkdown} className="markdown-view--card" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas-subtle" />
       </div>
