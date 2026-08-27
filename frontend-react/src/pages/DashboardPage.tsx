@@ -1,5 +1,6 @@
 import { useAuth } from '../auth/useAuth';
 import { NoteGrid } from '../components/NoteGrid';
+import { NotePreview } from '../components/NotePreview';
 
 export function DashboardPage() {
   const { user, loading, login } = useAuth();
@@ -8,15 +9,21 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      {!user && (
-        <div className="hint-banner">
-          <p>Sign in to create your own notes, share them, and mention teammates.</p>
-          <button type="button" onClick={() => login('/')}>
-            Log in
-          </button>
-        </div>
+      {user ? (
+        <NoteGrid key={user.id} />
+      ) : (
+        <>
+          <div className="hint-banner">
+            <p>Sign in to create your own notes, share them, and mention teammates.</p>
+            <button type="button" onClick={() => login('/')}>
+              Log in
+            </button>
+          </div>
+          <div className="note-preview-wrap">
+            <NotePreview />
+          </div>
+        </>
       )}
-      <NoteGrid key={user?.id ?? 'anon'} />
     </div>
   );
 }

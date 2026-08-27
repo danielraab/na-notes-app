@@ -157,6 +157,22 @@ textarea {
   color: var(--text-muted);
 }
 
+.note-card--preview {
+  cursor: default;
+  border-style: dashed;
+}
+
+.note-preview-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.note-preview-wrap .note-card--preview {
+  width: 100%;
+  max-width: 320px;
+}
+
 .note-grid__status {
   text-align: center;
   color: var(--text-muted);
