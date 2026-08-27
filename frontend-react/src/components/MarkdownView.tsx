@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { promoteBareTaskLines } from '../utils/taskList';
 
 interface MarkdownViewProps {
   markdown: string;
@@ -20,7 +21,7 @@ export function MarkdownView({ markdown, className, onToggleTask }: MarkdownView
   const containerRef = useRef<HTMLDivElement>(null);
 
   const html = useMemo(() => {
-    const rawHtml = marked.parse(markdown, { async: false, breaks: true });
+    const rawHtml = marked.parse(promoteBareTaskLines(markdown), { async: false, breaks: true });
     return DOMPurify.sanitize(rawHtml);
   }, [markdown]);
 
