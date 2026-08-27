@@ -128,13 +128,14 @@
   .markdown-view blockquote {
     @apply border-l-2 border-line pl-3 text-fg-muted;
   }
-  /* GFM task list items: drop the list marker and hang the checkbox where
-     it would have been. */
+  /* GFM task list items: drop the list marker but keep the list's normal
+     indentation so nested checklists still nest. */
   .markdown-view li:has(> input[type='checkbox']:first-child) {
-    @apply list-none -ml-6;
+    @apply list-none;
   }
   .markdown-view li > input[type='checkbox']:first-child {
-    @apply mr-2 align-middle;
+    @apply mr-2 h-3.5 w-3.5 align-[-0.125em];
+    accent-color: var(--accent);
   }
   .markdown-view li > input[type='checkbox']:first-child:not(:disabled) {
     @apply cursor-pointer;
