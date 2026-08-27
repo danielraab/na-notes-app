@@ -38,7 +38,7 @@ export interface Note {
 export interface NoteSummary {
   id: string;
   title: string;
-  excerpt: string;
+  contentMarkdown: string;
   ownerId: string;
   myPermission: Permission;
   isPublic: boolean;

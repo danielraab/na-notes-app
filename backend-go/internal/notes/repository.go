@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -163,12 +161,11 @@ func (r *Repository) ListForViewer(ctx context.Context, userID, cur string, limi
 	var items []Summary
 	for rows.Next() {
 		var s Summary
-		var content, updatedAt, permission string
+		var updatedAt, permission string
 		var isPublic int
-		if err := rows.Scan(&s.ID, &s.Title, &content, &s.OwnerID, &updatedAt, &permission, &isPublic); err != nil {
+		if err := rows.Scan(&s.ID, &s.Title, &s.ContentMarkdown, &s.OwnerID, &updatedAt, &permission, &isPublic); err != nil {
 			return Page{}, err
 		}
-		s.Excerpt = excerpt(content)
 		s.UpdatedAt = parseTime(updatedAt)
 		s.MyPermission = Permission(permission)
 		s.IsPublic = isPublic == 1
@@ -349,25 +346,4 @@ func fmtTime(t time.Time) string {
 func parseTime(s string) time.Time {
 	t, _ := time.Parse(time.RFC3339Nano, s)
 	return t
-}
-
-var (
-	markdownSyntax = regexp.MustCompile("[#*_`>~\\[\\]()!-]")
-	whitespaceRun  = regexp.MustCompile(`\s+`)
-)
-
-// excerpt derives a short plain-text preview from markdown content for
-// dashboard listings. It's intentionally simple (strip common markdown
-// punctuation, collapse whitespace, truncate) rather than a full
-// markdown-to-text renderer, since it's only used as a hint in the list view.
-func excerpt(markdown string) string {
-	stripped := markdownSyntax.ReplaceAllString(markdown, "")
-	stripped = whitespaceRun.ReplaceAllString(stripped, " ")
-	stripped = strings.TrimSpace(stripped)
-	const maxLen = 160
-	runes := []rune(stripped)
-	if len(runes) <= maxLen {
-		return stripped
-	}
-	return string(runes[:maxLen]) + "…"
 }

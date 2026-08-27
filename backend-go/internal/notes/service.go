@@ -15,13 +15,13 @@ const InitialPageSize = 12
 
 func sampleNote() Summary {
 	return Summary{
-		ID:           "00000000-0000-0000-0000-000000000000",
-		Title:        "Welcome to NA Notes",
-		Excerpt:      "Sign in to create your own notes, share them with teammates, and mention people to loop them in.",
-		OwnerID:      "00000000-0000-0000-0000-000000000000",
-		MyPermission: PermissionRead,
-		IsPublic:     true,
-		UpdatedAt:    time.Now().UTC(),
+		ID:              "00000000-0000-0000-0000-000000000000",
+		Title:           "Welcome to NA Notes",
+		ContentMarkdown: "Sign in to create your own notes, share them with teammates, and mention people to loop them in.",
+		OwnerID:         "00000000-0000-0000-0000-000000000000",
+		MyPermission:    PermissionRead,
+		IsPublic:        true,
+		UpdatedAt:       time.Now().UTC(),
 	}
 }
 

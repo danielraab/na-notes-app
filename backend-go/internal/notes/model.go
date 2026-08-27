@@ -23,13 +23,13 @@ type Note struct {
 }
 
 type Summary struct {
-	ID           string
-	Title        string
-	Excerpt      string
-	OwnerID      string
-	MyPermission Permission
-	IsPublic     bool
-	UpdatedAt    time.Time
+	ID              string
+	Title           string
+	ContentMarkdown string
+	OwnerID         string
+	MyPermission    Permission
+	IsPublic        bool
+	UpdatedAt       time.Time
 }
 
 type Page struct {

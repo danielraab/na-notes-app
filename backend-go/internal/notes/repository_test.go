@@ -194,6 +194,28 @@ func TestMentionsAreNotifiedOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestListForViewerReturnsFullMarkdown(t *testing.T) {
+	ctx := context.Background()
+	repo, userRepo := newTestRepo(t)
+	owner := mustCreateUser(t, userRepo, "owner")
+
+	const body = "# Heading\n\nSome **bold** text and a [link](https://example.com)\n\n- one\n- two"
+	if _, err := repo.Create(ctx, owner.ID, "Note", body); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	page, err := repo.ListForViewer(ctx, owner.ID, "", 10)
+	if err != nil {
+		t.Fatalf("ListForViewer: %v", err)
+	}
+	if len(page.Items) != 1 {
+		t.Fatalf("got %d items, want 1", len(page.Items))
+	}
+	if page.Items[0].ContentMarkdown != body {
+		t.Errorf("ContentMarkdown = %q, want %q (dashboard feed must not alter markdown)", page.Items[0].ContentMarkdown, body)
+	}
+}
+
 func TestListForViewerCursorPagination(t *testing.T) {
 	ctx := context.Background()
 	repo, userRepo := newTestRepo(t)

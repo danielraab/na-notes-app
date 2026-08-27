@@ -73,24 +73,24 @@ func toNoteDTO(n notes.Note) noteDTO {
 }
 
 type noteSummaryDTO struct {
-	ID           string    `json:"id"`
-	Title        string    `json:"title"`
-	Excerpt      string    `json:"excerpt"`
-	OwnerID      string    `json:"ownerId"`
-	MyPermission string    `json:"myPermission"`
-	IsPublic     bool      `json:"isPublic"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID              string    `json:"id"`
+	Title           string    `json:"title"`
+	ContentMarkdown string    `json:"contentMarkdown"`
+	OwnerID         string    `json:"ownerId"`
+	MyPermission    string    `json:"myPermission"`
+	IsPublic        bool      `json:"isPublic"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 func toNoteSummaryDTO(s notes.Summary) noteSummaryDTO {
 	return noteSummaryDTO{
-		ID:           s.ID,
-		Title:        s.Title,
-		Excerpt:      s.Excerpt,
-		OwnerID:      s.OwnerID,
-		MyPermission: string(s.MyPermission),
-		IsPublic:     s.IsPublic,
-		UpdatedAt:    s.UpdatedAt,
+		ID:              s.ID,
+		Title:           s.Title,
+		ContentMarkdown: s.ContentMarkdown,
+		OwnerID:         s.OwnerID,
+		MyPermission:    string(s.MyPermission),
+		IsPublic:        s.IsPublic,
+		UpdatedAt:       s.UpdatedAt,
 	}
 }
 

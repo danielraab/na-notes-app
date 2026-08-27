@@ -128,4 +128,22 @@
   .markdown-view blockquote {
     @apply border-l-2 border-line pl-3 text-fg-muted;
   }
+
+  /* Compact variant for dashboard note cards: same sanitized render path,
+     but headings and spacing scaled down so a note preview stays card-sized. */
+  .markdown-view--card {
+    @apply text-sm leading-snug;
+  }
+  .markdown-view--card h1,
+  .markdown-view--card h2,
+  .markdown-view--card h3 {
+    @apply mt-3 mb-1 text-sm font-semibold;
+  }
+  .markdown-view--card p,
+  .markdown-view--card ul,
+  .markdown-view--card ol,
+  .markdown-view--card blockquote,
+  .markdown-view--card pre {
+    @apply my-1.5;
+  }
 }

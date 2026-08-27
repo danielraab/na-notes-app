@@ -26,7 +26,7 @@ export function NoteGrid() {
 
   return (
     <>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+      <div className="columns-[240px] gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid">
         {notes.map((note) => (
           <NoteCard key={note.id} note={note} />
         ))}

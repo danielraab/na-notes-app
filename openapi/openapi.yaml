@@ -588,17 +588,24 @@ components:
 
     NoteSummary:
       type: object
-      required: [id, title, ownerId, myPermission, updatedAt]
-      description: Trimmed representation used in dashboard listings (no full body).
+      required: [id, title, contentMarkdown, ownerId, myPermission, updatedAt]
+      description: >
+        Representation used in the dashboard listing. Carries the full note
+        body so the dashboard can render each note as rich text client-side;
+        differs from Note only by omitting version and createdAt.
       properties:
         id:
           type: string
           format: uuid
         title:
           type: string
-        excerpt:
+        contentMarkdown:
           type: string
-          description: Short plain-text preview derived from contentMarkdown.
+          description: >
+            Full Markdown source of the note body, identical to
+            Note.contentMarkdown. Mentions are written inline as
+            `@[displayName](userId)`. The server never returns rendered HTML;
+            clients render (and sanitize) Markdown themselves.
         ownerId:
           type: string
           format: uuid
