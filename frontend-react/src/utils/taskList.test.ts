@@ -1,37 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { countTaskItems, promoteBareTaskLines, setTaskItemChecked } from './taskList';
+import { countTaskItems, normalizeTaskLines, setTaskItemChecked } from './taskList';
 
 const NOTE = ['# Groceries', '', '- [ ] milk', '- [x] eggs', '- [ ] bread', '', 'plain line'].join(
   '\n',
 );
 
-describe('promoteBareTaskLines', () => {
-  it('adds a list marker to bare `[ ]` / `[x]` lines', () => {
-    expect(promoteBareTaskLines('[ ] milk\n[x] eggs')).toBe('- [ ] milk\n- [x] eggs');
+describe('normalizeTaskLines', () => {
+  it('promotes bare `[ ]` / `[x]` lines to list items', () => {
+    expect(normalizeTaskLines('[ ] milk\n[x] eggs')).toBe('- [ ] milk\n- [x] eggs');
   });
 
-  it('keeps indentation and leaves list items and prose alone', () => {
-    expect(promoteBareTaskLines('  [ ] sub')).toBe('  - [ ] sub');
-    expect(promoteBareTaskLines('- [ ] already')).toBe('- [ ] already');
-    expect(promoteBareTaskLines('text [ ] inline')).toBe('text [ ] inline');
+  it('treats empty `[]` as an unchecked box', () => {
+    expect(normalizeTaskLines('[] milk')).toBe('- [ ] milk');
+    expect(normalizeTaskLines('- [] milk')).toBe('- [ ] milk');
+  });
+
+  it('keeps indentation, list markers and prose alone', () => {
+    expect(normalizeTaskLines('  [] sub')).toBe('  - [ ] sub');
+    expect(normalizeTaskLines('- [ ] already')).toBe('- [ ] already');
+    expect(normalizeTaskLines('text [ ] inline')).toBe('text [ ] inline');
+    expect(normalizeTaskLines('[x]: https://example.com')).toBe('[x]: https://example.com');
   });
 
   it('does not touch checkbox-looking lines inside fenced code', () => {
-    expect(promoteBareTaskLines('```\n[ ] not real\n```\n[ ] real')).toBe(
-      '```\n[ ] not real\n```\n- [ ] real',
+    expect(normalizeTaskLines('```\n[] not real\n```\n[] real')).toBe(
+      '```\n[] not real\n```\n- [ ] real',
     );
   });
 });
 
 describe('countTaskItems', () => {
-  it('counts task-list checkboxes, with or without a list marker', () => {
+  it('counts task checkboxes in every accepted spelling', () => {
     expect(countTaskItems(NOTE)).toBe(3);
-    expect(countTaskItems('[ ] a\n[x] b')).toBe(2);
+    expect(countTaskItems('[ ] a\n[x] b\n[] c')).toBe(3);
     expect(countTaskItems('- a\n- b')).toBe(0);
   });
 
   it('supports `*`, `+` and ordered markers', () => {
-    expect(countTaskItems('* [ ] a\n+ [x] b\n1. [ ] c\n2) [x] d')).toBe(4);
+    expect(countTaskItems('* [ ] a\n+ [x] b\n1. [ ] c\n2) [] d')).toBe(4);
   });
 
   it('ignores checkboxes inside fenced code blocks', () => {
@@ -49,9 +55,14 @@ describe('setTaskItemChecked', () => {
     expect(setTaskItemChecked(NOTE, 1, false)).toContain('- [ ] eggs');
   });
 
-  it('toggles bare `[ ]` lines that have no list marker', () => {
+  it('toggles bare `[ ]` lines without adding a list marker', () => {
     expect(setTaskItemChecked('[ ] a\n[x] b', 0, true)).toBe('[x] a\n[x] b');
     expect(setTaskItemChecked('[ ] a\n[x] b', 1, false)).toBe('[ ] a\n[ ] b');
+  });
+
+  it('canonicalises an empty `[]` when toggled', () => {
+    expect(setTaskItemChecked('[] a', 0, true)).toBe('[x] a');
+    expect(setTaskItemChecked('- [] a', 0, false)).toBe('- [ ] a');
   });
 
   it('touches only the targeted line', () => {

@@ -1,23 +1,28 @@
 // GFM task list checkboxes: `marked` only renders `[ ]` / `[x]` as an
-// <input type="checkbox"> when it is the start of a list item. Notes in
-// the wild also write bare `[ ] thing` lines with no `-`, so this module
-// both promotes those to list items for rendering and maps a rendered
-// checkbox (by its document-order index) back to its source line so it
-// can be toggled in place.
+// <input type="checkbox"> when it is the start of a list item *and*
+// spelled exactly. Notes in the wild also write bare `[ ] thing` lines
+// with no `-`, and empty `[]` for "unchecked". This module normalizes
+// those for rendering and maps a rendered checkbox (by its document-order
+// index) back to its source line so it can be toggled in place.
 
-// A task line, with or without a leading list marker (`-`, `*`, `+`,
-// `1.`, `1)`). Group 1 is everything up to and including the `[`, group 2
-// the check mark, group 3 the whitespace that must follow the `]`.
-const TASK_LINE = /^(\s*(?:[-*+]|\d+[.)])?[ \t]*)\[([ xX])\]([ \t])/;
-const BARE_TASK_LINE = /^(\s*)(\[[ xX]\][ \t])/;
+// A task line: leading indent (1), an optional list marker with its
+// trailing space (2), a checkbox token `[]` / `[ ]` / `[x]` / `[X]` whose
+// check char is group 3, then the run of space before the text (4).
+// `(?=\S)` requires actual content after the box, matching `marked`.
+const TASK_LINE = /^([ \t]*)((?:[-*+]|\d+[.)])[ \t]+)?\[([ xX]?)\]([ \t]+)(?=\S)/;
 const FENCE = /^\s*(?:```|~~~)/;
 
+function isChecked(mark: string): boolean {
+  return mark === 'x' || mark === 'X';
+}
+
 /**
- * Promotes bare `[ ] thing` lines (no list marker) to `- [ ] thing` so
- * `marked` renders them as task-list checkboxes. Lines already in a list
- * and lines inside fenced code blocks are left alone.
+ * Rewrites task lines to the exact spelling `marked` needs: `[]` and
+ * `[ ]` become `- [ ]`, `[x]` becomes `- [x]`, and a bare line with no
+ * list marker gains a `- `. Fenced code, real list items, and inline
+ * `[ ]` are left alone.
  */
-export function promoteBareTaskLines(markdown: string): string {
+export function normalizeTaskLines(markdown: string): string {
   const lines = markdown.split('\n');
   let inFence = false;
   for (let i = 0; i < lines.length; i++) {
@@ -26,7 +31,11 @@ export function promoteBareTaskLines(markdown: string): string {
       continue;
     }
     if (inFence) continue;
-    lines[i] = lines[i].replace(BARE_TASK_LINE, '$1- $2');
+    lines[i] = lines[i].replace(
+      TASK_LINE,
+      (_m, indent: string, marker: string | undefined, mark: string, space: string) =>
+        `${indent}${marker ?? '- '}[${isChecked(mark) ? 'x' : ' '}]${space}`,
+    );
   }
   return lines.join('\n');
 }
@@ -64,8 +73,9 @@ export function countTaskItems(markdown: string): number {
 
 /**
  * Returns `markdown` with the `index`-th task checkbox (0-based, document
- * order) set to `checked`. Returns the input unchanged if there is no
- * such checkbox.
+ * order) set to `checked`. The touched line keeps its own indentation and
+ * list marker (or lack of one); an empty `[]` becomes `[ ]` / `[x]`.
+ * Returns the input unchanged if there is no such checkbox.
  */
 export function setTaskItemChecked(markdown: string, index: number, checked: boolean): string {
   const lines = markdown.split('\n');
@@ -73,8 +83,8 @@ export function setTaskItemChecked(markdown: string, index: number, checked: boo
     if (taskIndex !== index) return;
     lines[lineIndex] = lines[lineIndex].replace(
       TASK_LINE,
-      (_m, prefix: string, _mark: string, space: string) =>
-        `${prefix}[${checked ? 'x' : ' '}]${space}`,
+      (_m, indent: string, marker: string | undefined, _mark: string, space: string) =>
+        `${indent}${marker ?? ''}[${checked ? 'x' : ' '}]${space}`,
     );
   });
   return lines.join('\n');

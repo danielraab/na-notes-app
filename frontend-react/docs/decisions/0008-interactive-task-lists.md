@@ -20,13 +20,15 @@ without opening the editor.
   `MarkdownView` (ADR 0004). `index.css` drops the list marker (keeping
   the list's normal indent, so nested checklists still nest) for any `li`
   whose first child is a checkbox.
-- **Bare lines count too.** `marked` only makes a checkbox from `[ ]` /
-  `[x]` at the start of a *list item*, but notes routinely write bare
-  `[ ] thing` lines with no `-`. `promoteBareTaskLines` (in
-  `utils/taskList.ts`) prefixes those with `- ` before parsing — outside
-  fenced code, and leaving real list items and inline `[ ]` alone. It
-  massages the Markdown text only; the render still goes `marked` ->
-  `DOMPurify.sanitize` with no second path.
+- **Lenient input spelling.** `marked` only makes a checkbox from a
+  *list item* whose text is exactly `[ ] ` / `[x] `, but notes routinely
+  write bare `[ ] thing` lines with no `-`, and `[]` for "unchecked".
+  `normalizeTaskLines` (in `utils/taskList.ts`) rewrites those to the
+  canonical `- [ ] ` / `- [x] ` before parsing — outside fenced code, and
+  leaving real list items, inline `[ ]` and link-reference definitions
+  (`[x]: url`) alone. It massages the Markdown text only; the render still
+  goes `marked` -> `DOMPurify.sanitize` with no second path. The toggle
+  helpers accept the same spellings and canonicalise `[]` on write.
 - **Opt-in interactivity.** `MarkdownView` gained an optional
   `onToggleTask(index, checked)` prop. Without it (note view, public
   view, read-only shares) the boxes stay `disabled`, exactly as before.
