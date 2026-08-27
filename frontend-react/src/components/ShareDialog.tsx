@@ -63,16 +63,23 @@ export function ShareDialog({ noteId, onClose }: Props) {
   }
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
-        <h2>Share note</h2>
-        {error && <p className="error-banner">{error}</p>}
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto rounded-xl border border-line bg-canvas p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-4 text-xl font-semibold">Share note</h2>
+        {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
-        <section>
-          <h3>Share with a person</h3>
-          <div className="share-form">
+        <section className="mb-5">
+          <h3 className="mb-2 text-sm font-semibold text-fg-muted">Share with a person</h3>
+          <div className="relative mb-3 flex flex-wrap gap-2">
             <input
               type="text"
+              className="field min-w-[160px] flex-1"
               placeholder="Search by name or email"
               value={selectedUser ? selectedUser.displayName : query}
               onChange={(e) => {
@@ -81,31 +88,41 @@ export function ShareDialog({ noteId, onClose }: Props) {
               }}
             />
             {results.length > 0 && !selectedUser && (
-              <ul className="mention-suggestions">
+              <ul className="absolute left-0 top-full z-10 mt-1 max-w-[260px] list-none rounded-md border border-line bg-canvas p-1">
                 {results.map((user) => (
                   <li key={user.id}>
-                    <button type="button" onClick={() => setSelectedUser(user)}>
+                    <button
+                      type="button"
+                      className="block w-full rounded px-2 py-1 text-left text-sm hover:bg-canvas-subtle"
+                      onClick={() => setSelectedUser(user)}
+                    >
                       {user.displayName}
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            <select value={permission} onChange={(e) => setPermission(e.target.value as SharePermission)}>
+            <select
+              className="field"
+              value={permission}
+              onChange={(e) => setPermission(e.target.value as SharePermission)}
+            >
               <option value="read">Read only</option>
               <option value="edit">Can edit</option>
             </select>
-            <button type="button" onClick={handleShare} disabled={!selectedUser}>
+            <button type="button" className="btn" onClick={handleShare} disabled={!selectedUser}>
               Share
             </button>
           </div>
 
-          <ul className="share-list">
+          <ul className="space-y-1">
             {shares?.userShares.map((share) => (
-              <li key={share.user.id}>
-                <span>{share.user.displayName}</span>
-                <span>{share.permission === 'edit' ? 'Can edit' : 'Read only'}</span>
-                <button type="button" onClick={() => handleRevoke(share.user.id)}>
+              <li key={share.user.id} className="flex items-center gap-2.5 py-1.5">
+                <span className="flex-1">{share.user.displayName}</span>
+                <span className="text-sm text-fg-muted">
+                  {share.permission === 'edit' ? 'Can edit' : 'Read only'}
+                </span>
+                <button type="button" className="btn" onClick={() => handleRevoke(share.user.id)}>
                   Remove
                 </button>
               </li>
@@ -113,23 +130,29 @@ export function ShareDialog({ noteId, onClose }: Props) {
           </ul>
         </section>
 
-        <section>
-          <h3>Public link</h3>
+        <section className="mb-5">
+          <h3 className="mb-2 text-sm font-semibold text-fg-muted">Public link</h3>
           {shares?.publicShare ? (
-            <div className="public-link">
-              <input type="text" readOnly value={shares.publicShare.url} onFocus={(e) => e.target.select()} />
-              <button type="button" onClick={handleRevokePublicLink}>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="field flex-1"
+                readOnly
+                value={shares.publicShare.url}
+                onFocus={(e) => e.target.select()}
+              />
+              <button type="button" className="btn" onClick={handleRevokePublicLink}>
                 Revoke
               </button>
             </div>
           ) : (
-            <button type="button" onClick={handleCreatePublicLink}>
+            <button type="button" className="btn" onClick={handleCreatePublicLink}>
               Create public link (read-only)
             </button>
           )}
         </section>
 
-        <button type="button" onClick={onClose} className="dialog__close">
+        <button type="button" className="btn" onClick={onClose}>
           Done
         </button>
       </div>

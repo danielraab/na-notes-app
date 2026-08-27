@@ -11,6 +11,9 @@ CSRF, pagination, sharing, concurrency).
 
 - Vite + React 19 + TypeScript.
 - `react-router-dom` for client-side routing.
+- Tailwind CSS v4 (`@tailwindcss/vite`) for styling — palette tokens and a
+  few `@apply` primitives live in `src/index.css`, everything else is
+  inline utilities (see `docs/decisions/0006-tailwind-styling.md`).
 - `marked` + `dompurify` for rendering and sanitizing note Markdown.
 - `vitest` for unit tests.
 - `oxlint` for linting.

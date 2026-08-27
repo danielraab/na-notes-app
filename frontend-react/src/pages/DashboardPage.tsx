@@ -13,13 +13,13 @@ export function DashboardPage() {
         <NoteGrid key={user.id} />
       ) : (
         <>
-          <div className="hint-banner">
+          <div className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-line bg-canvas-subtle px-4 py-3">
             <p>Sign in to create your own notes, share them, and mention teammates.</p>
-            <button type="button" onClick={() => login('/')}>
+            <button type="button" className="btn" onClick={() => login('/')}>
               Log in
             </button>
           </div>
-          <div className="note-preview-wrap">
+          <div className="flex justify-center py-6">
             <NotePreview />
           </div>
         </>

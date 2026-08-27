@@ -60,12 +60,20 @@ export function MarkdownEditor({ value, onChange }: Props) {
   }
 
   return (
-    <div className="markdown-editor">
-      <div className="markdown-editor__tabs">
-        <button type="button" className={!showPreview ? 'active' : ''} onClick={() => setShowPreview(false)}>
+    <div>
+      <div className="mb-2 flex gap-1">
+        <button
+          type="button"
+          className={!showPreview ? 'btn btn-primary' : 'btn'}
+          onClick={() => setShowPreview(false)}
+        >
           Write
         </button>
-        <button type="button" className={showPreview ? 'active' : ''} onClick={() => setShowPreview(true)}>
+        <button
+          type="button"
+          className={showPreview ? 'btn btn-primary' : 'btn'}
+          onClick={() => setShowPreview(true)}
+        >
           Preview
         </button>
       </div>
@@ -73,10 +81,10 @@ export function MarkdownEditor({ value, onChange }: Props) {
       {showPreview ? (
         <MarkdownView markdown={value} />
       ) : (
-        <div className="markdown-editor__input-wrapper">
+        <div className="relative">
           <textarea
             ref={textareaRef}
-            className="markdown-editor__textarea"
+            className="w-full resize-y rounded-md border border-line bg-canvas p-3 font-mono text-sm text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
             value={value}
             onChange={handleChange}
             onKeyUp={handleKeyUp}
@@ -86,10 +94,14 @@ export function MarkdownEditor({ value, onChange }: Props) {
             rows={16}
           />
           {mentionQuery && suggestions.length > 0 && (
-            <ul className="mention-suggestions">
+            <ul className="absolute z-10 mt-1 max-w-[260px] list-none rounded-md border border-line bg-canvas p-1">
               {suggestions.map((user) => (
                 <li key={user.id}>
-                  <button type="button" onClick={() => selectMention(user)}>
+                  <button
+                    type="button"
+                    className="block w-full rounded px-2 py-1 text-left text-sm hover:bg-canvas-subtle"
+                    onClick={() => selectMention(user)}
+                  >
                     {user.displayName}
                   </button>
                 </li>

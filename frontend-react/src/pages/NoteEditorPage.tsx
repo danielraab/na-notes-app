@@ -40,8 +40,8 @@ export function NoteEditorPage() {
   if (!authLoading && !user) {
     return (
       <div className="page">
-        <p>You need to be signed in to {isNew ? 'create' : 'view'} this note.</p>
-        <button type="button" onClick={() => login(window.location.pathname)}>
+        <p className="mb-4">You need to be signed in to {isNew ? 'create' : 'view'} this note.</p>
+        <button type="button" className="btn" onClick={() => login(window.location.pathname)}>
           Log in
         </button>
       </div>
@@ -49,7 +49,7 @@ export function NoteEditorPage() {
   }
 
   if (loading) return <p className="page">Loading…</p>;
-  if (error) return <p className="page error-banner">{error}</p>;
+  if (error) return <p className="page text-danger">{error}</p>;
 
   const readOnly = note !== null && note.myPermission === 'read';
   const canManageSharing = note?.myPermission === 'owner';
@@ -98,18 +98,18 @@ export function NoteEditorPage() {
   }
 
   return (
-    <div className="page note-editor-page">
+    <div className="page">
       {conflict && (
-        <div className="conflict-banner">
+        <div className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-line bg-canvas-subtle px-4 py-3">
           <p>This note was changed by someone else since you opened it. Your unsaved edits are still below.</p>
-          <button type="button" onClick={reloadLatest}>
+          <button type="button" className="btn" onClick={reloadLatest}>
             Load the latest version (discards your changes)
           </button>
         </div>
       )}
 
       <input
-        className="note-editor-page__title"
+        className="mb-4 block w-full rounded-md border border-line bg-canvas px-2.5 py-2 text-2xl font-semibold text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Untitled note"
@@ -118,19 +118,24 @@ export function NoteEditorPage() {
 
       {readOnly ? <MarkdownView markdown={content} /> : <MarkdownEditor value={content} onChange={setContent} />}
 
-      <div className="note-editor-page__actions">
+      <div className="mt-4 flex gap-2.5">
         {!readOnly && (
-          <button type="button" onClick={handleSave} disabled={saving || title.trim() === ''}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleSave}
+            disabled={saving || title.trim() === ''}
+          >
             {saving ? 'Saving…' : 'Save'}
           </button>
         )}
         {canManageSharing && (
-          <button type="button" onClick={() => setShowShare(true)}>
+          <button type="button" className="btn" onClick={() => setShowShare(true)}>
             Share
           </button>
         )}
         {canDelete && (
-          <button type="button" onClick={handleDelete} className="danger">
+          <button type="button" className="btn btn-danger" onClick={handleDelete}>
             Delete
           </button>
         )}

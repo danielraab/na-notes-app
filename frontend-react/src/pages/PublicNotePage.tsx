@@ -20,7 +20,7 @@ export function PublicNotePage() {
   if (error) {
     return (
       <div className="page">
-        <p className="error-banner">{error}</p>
+        <p className="text-danger">{error}</p>
       </div>
     );
   }
@@ -34,8 +34,10 @@ export function PublicNotePage() {
 
   return (
     <div className="page">
-      <p className="public-note-banner">Shared read-only note</p>
-      <h1>{note.title}</h1>
+      <p className="mb-3 inline-block rounded-full bg-canvas-subtle px-3 py-1 text-sm text-fg-muted">
+        Shared read-only note
+      </p>
+      <h1 className="mb-4 text-3xl font-bold">{note.title}</h1>
       <MarkdownView markdown={note.contentMarkdown} />
     </div>
   );

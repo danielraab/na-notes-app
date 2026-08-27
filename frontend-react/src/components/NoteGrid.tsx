@@ -21,18 +21,20 @@ export function NoteGrid() {
   }, [hasMore, loadMore]);
 
   if (error) {
-    return <p className="error-banner">{error}</p>;
+    return <p className="text-danger">{error}</p>;
   }
 
   return (
     <>
-      <div className="note-grid">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
         {notes.map((note) => (
           <NoteCard key={note.id} note={note} />
         ))}
       </div>
-      {loading && <p className="note-grid__status">Loading…</p>}
-      {!loading && notes.length === 0 && <p className="note-grid__status">No notes yet.</p>}
+      {loading && <p className="py-6 text-center text-fg-muted">Loading…</p>}
+      {!loading && notes.length === 0 && (
+        <p className="py-6 text-center text-fg-muted">No notes yet.</p>
+      )}
       <div ref={sentinelRef} />
     </>
   );
