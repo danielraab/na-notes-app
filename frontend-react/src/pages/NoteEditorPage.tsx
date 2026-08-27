@@ -19,6 +19,7 @@ export function NoteEditorPage() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<Note | null>(null);
   const [showShare, setShowShare] = useState(false);
@@ -36,6 +37,12 @@ export function NoteEditorPage() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load note'))
       .finally(() => setLoading(false));
   }, [id, isNew]);
+
+  useEffect(() => {
+    if (!justSaved) return;
+    const timer = setTimeout(() => setJustSaved(false), 3000);
+    return () => clearTimeout(timer);
+  }, [justSaved]);
 
   if (!authLoading && !user) {
     return (
@@ -59,10 +66,12 @@ export function NoteEditorPage() {
     setSaving(true);
     setError(null);
     setConflict(null);
+    setJustSaved(false);
     const mentionedUserIds = extractMentionedUserIds(content);
     try {
       if (isNew) {
         const created = await api.createNote({ title, contentMarkdown: content, mentionedUserIds });
+        setJustSaved(true);
         navigate(`/notes/${created.id}`, { replace: true });
       } else if (note) {
         const updated = await api.updateNote(note.id, note.version, {
@@ -71,6 +80,7 @@ export function NoteEditorPage() {
           mentionedUserIds,
         });
         setNote(updated);
+        setJustSaved(true);
       }
     } catch (err) {
       if (err instanceof VersionConflictError) {
@@ -111,14 +121,27 @@ export function NoteEditorPage() {
       <input
         className="mb-4 block w-full rounded-md border border-line bg-canvas px-2.5 py-2 text-2xl font-semibold text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(e) => {
+          setTitle(e.target.value);
+          setJustSaved(false);
+        }}
         placeholder="Untitled note"
         disabled={readOnly}
       />
 
-      {readOnly ? <MarkdownView markdown={content} /> : <MarkdownEditor value={content} onChange={setContent} />}
+      {readOnly ? (
+        <MarkdownView markdown={content} />
+      ) : (
+        <MarkdownEditor
+          value={content}
+          onChange={(value) => {
+            setContent(value);
+            setJustSaved(false);
+          }}
+        />
+      )}
 
-      <div className="mt-4 flex gap-2.5">
+      <div className="mt-4 flex items-center gap-2.5">
         {!readOnly && (
           <button
             type="button"
@@ -138,6 +161,11 @@ export function NoteEditorPage() {
           <button type="button" className="btn btn-danger" onClick={handleDelete}>
             Delete
           </button>
+        )}
+        {justSaved && (
+          <span role="status" className="inline-flex items-center gap-1.5 text-sm text-fg-muted">
+            <span aria-hidden="true">✓</span> Saved
+          </span>
         )}
       </div>
 
