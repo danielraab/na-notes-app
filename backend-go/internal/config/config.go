@@ -28,8 +28,11 @@ type Config struct {
 	OIDCRedirectURL  string
 	OIDCScopes       []string
 
-	// Database
+	// Database. DatabaseURL, when set, takes priority: it selects and
+	// configures an alternate engine (e.g. postgres://...) instead of the
+	// default embedded SQLite file at DatabasePath. See ADR 0013.
 	DatabasePath string
+	DatabaseURL  string
 
 	// SMTP
 	SMTPHost     string
@@ -53,6 +56,7 @@ func Load() (*Config, error) {
 		OIDCRedirectURL:  os.Getenv("OIDC_REDIRECT_URL"),
 		OIDCScopes:       splitCSV(getEnv("OIDC_SCOPES", "openid,profile,email")),
 		DatabasePath:     getEnv("DATABASE_PATH", "./notes.db"),
+		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		SMTPHost:         os.Getenv("SMTP_HOST"),
 		SMTPPort:         getEnv("SMTP_PORT", "25"),
 		SMTPUsername:     os.Getenv("SMTP_USERNAME"),

@@ -97,6 +97,7 @@ backend ones:
 | `SESSION_SECRET` | Server-side session signing/encryption key |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Outgoing mail for share/mention notifications |
 | `DATABASE_PATH` | SQLite file path inside the backend container |
+| `DATABASE_URL` | Optional; when set, connects to PostgreSQL instead of SQLite (ADR 0013) |
 
 ## Contributing a new implementation
 

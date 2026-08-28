@@ -6,9 +6,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/danielraab/na-notes-app/backend-go/internal/db"
 )
 
 type User struct {
@@ -26,11 +29,11 @@ type Summary struct {
 }
 
 type Repository struct {
-	db *sql.DB
+	db *db.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(sqlDB *db.DB) *Repository {
+	return &Repository{db: sqlDB}
 }
 
 // UpsertFromOIDC creates the user on first login, or refreshes their
@@ -103,10 +106,10 @@ func parseTime(s string) time.Time {
 // Search returns users whose display name or email starts with q,
 // excluding the caller, for mention/share autocomplete.
 func (r *Repository) Search(ctx context.Context, excludeUserID, q string, limit int) ([]Summary, error) {
-	like := q + "%"
+	like := strings.ToLower(q) + "%"
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, display_name, avatar_url FROM users
-		 WHERE id != ? AND (display_name LIKE ? OR email LIKE ?)
+		 WHERE id != ? AND (LOWER(display_name) LIKE ? OR LOWER(email) LIKE ?)
 		 ORDER BY display_name LIMIT ?`,
 		excludeUserID, like, like, limit,
 	)

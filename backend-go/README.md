@@ -11,7 +11,11 @@ pagination, sharing, concurrency).
 - Go 1.25, standard library `net/http` (method+path routing, no router
   dependency needed).
 - `modernc.org/sqlite` — pure-Go SQLite driver (no CGO), so the Docker
-  image builds `CGO_ENABLED=0` and needs no C toolchain at runtime.
+  image builds `CGO_ENABLED=0` and needs no C toolchain at runtime. This is
+  the default database; `github.com/jackc/pgx/v5` (also pure Go) is used
+  when `DATABASE_URL` opts into PostgreSQL instead — see
+  [ADR 0013](../docs/adr/0013-exchangeable-database-backend.md) and
+  [`docs/decisions/0005-postgres-support-via-pgx.md`](docs/decisions/0005-postgres-support-via-pgx.md).
 - `github.com/coreos/go-oidc` + `golang.org/x/oauth2` — generic OIDC
   client (authorization code + PKCE).
 - `net/smtp` (standard library) for notification emails.
@@ -34,7 +38,9 @@ go run ./cmd/server
 
 The server listens on `LISTEN_ADDR` (default `:8080`) and creates its
 SQLite file at `DATABASE_PATH` (default `./notes.db`), running migrations
-automatically on startup.
+automatically on startup. Set `DATABASE_URL` to a `postgres://...` DSN
+instead to use PostgreSQL — it takes priority over `DATABASE_PATH` when
+set (see [ADR 0013](../docs/adr/0013-exchangeable-database-backend.md)).
 
 ## Configuration
 
@@ -80,6 +86,14 @@ go test ./...
 (temp file per test) — sharing visibility, optimistic-concurrency
 conflicts, public share tokens, mention tracking, and cursor pagination
 correctness under interleaved pages.
+
+`internal/db` additionally has an opt-in PostgreSQL integration test that
+only runs when `POSTGRES_TEST_URL` is set, e.g.:
+
+```bash
+docker run --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+POSTGRES_TEST_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable go test ./internal/db/...
+```
 
 ## Docker
 
