@@ -8,6 +8,13 @@ backend-go/*.db-journal
 backend-go/*.db-wal
 backend-go/*.db-shm
 
+# Rust
+backend-rust/target/
+backend-rust/*.db
+backend-rust/*.db-journal
+backend-rust/*.db-wal
+backend-rust/*.db-shm
+
 # Node / React
 frontend-react/node_modules/
 frontend-react/dist/
