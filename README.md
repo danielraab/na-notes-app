@@ -59,6 +59,7 @@ See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 ├── docs/adr/                # cross-cutting architecture decisions
 ├── docs/schema.md            # reference data model (non-binding, see ADR 0014)
 ├── backend-go/               # Go backend implementation
+├── backend-rust/             # Rust backend implementation
 ├── frontend-react/           # React frontend implementation
 ├── docker-compose.yml        # runs one backend + one frontend + db volume
 └── .github/workflows/ci.yml  # builds/tests each implementation independently
