@@ -62,6 +62,15 @@ whether to fork queries per engine or keep them shared.
   (`time.Now().UTC()`) on insert rather than via a SQL-level
   `DEFAULT (datetime('now'))`, since that default expression is
   SQLite-specific.
+- **SQLite paths are percent-encoded before being embedded in the `file:`
+  URI DSN** (`escapeSQLiteURIPath` in `internal/db/rebind.go`). Without
+  this, a path containing `#` silently truncates at a URI fragment
+  boundary — the driver opens a different, shorter path than requested,
+  with no error. This was caught by `TestOpenSchemeDispatchToSQLite`
+  itself: Go's `t.TempDir()` embeds a literal `#NN` for an unnamed
+  subtest, which reproduced the truncation deterministically. `?` and `%`
+  are escaped for the same reason (they'd otherwise start the query string
+  early, or be mis-parsed as an existing percent-escape).
 
 ## Consequences
 

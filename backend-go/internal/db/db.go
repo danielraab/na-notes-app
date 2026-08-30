@@ -72,7 +72,7 @@ func Open(databaseURL string) (*DB, error) {
 // openSQLite opens (creating if necessary) the SQLite database at path and
 // applies any migrations that haven't run yet.
 func openSQLite(path string) (*DB, error) {
-	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)", path)
+	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)", escapeSQLiteURIPath(path))
 	sqlDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)

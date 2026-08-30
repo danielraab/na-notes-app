@@ -1,3 +1,9 @@
+-- This schema is the source /docs/schema.md was extracted from (ADR 0014):
+-- a non-binding reference for other backend implementations to model
+-- their own schema close to, so migrating data between implementations
+-- stays tractable. Update /docs/schema.md if a future migration here
+-- changes the data model, not just SQL-dialect-level detail.
+
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     oidc_subject TEXT NOT NULL UNIQUE,
