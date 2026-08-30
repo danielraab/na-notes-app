@@ -47,9 +47,31 @@ func (d *DB) QueryRowContext(ctx context.Context, query string, args ...any) *sq
 	return d.DB.QueryRowContext(ctx, rebind(d.driver, query), args...)
 }
 
-// Open opens (creating if necessary) the SQLite database at path and
+// Open opens the database identified by databaseURL — its scheme selects
+// the engine — creating it if necessary and applying any migrations that
+// haven't run yet. See ADR 0013.
+//
+//   - "postgres://..." or "postgresql://..." connects to PostgreSQL; the
+//     whole URL is passed through to the driver as-is.
+//   - "sqlite://<path>" or "file:<path>" (or any string with neither of
+//     the above schemes, e.g. a bare "./notes.db" or "/data/notes.db")
+//     opens a SQLite database file at <path>.
+func Open(databaseURL string) (*DB, error) {
+	switch {
+	case strings.HasPrefix(databaseURL, "postgres://"), strings.HasPrefix(databaseURL, "postgresql://"):
+		return openPostgres(databaseURL)
+	case strings.HasPrefix(databaseURL, "sqlite://"):
+		return openSQLite(strings.TrimPrefix(databaseURL, "sqlite://"))
+	case strings.HasPrefix(databaseURL, "file:"):
+		return openSQLite(strings.TrimPrefix(databaseURL, "file:"))
+	default:
+		return openSQLite(databaseURL)
+	}
+}
+
+// openSQLite opens (creating if necessary) the SQLite database at path and
 // applies any migrations that haven't run yet.
-func Open(path string) (*DB, error) {
+func openSQLite(path string) (*DB, error) {
 	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)", path)
 	sqlDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -67,11 +89,10 @@ func Open(path string) (*DB, error) {
 	return &DB{DB: sqlDB, driver: driverSQLite}, nil
 }
 
-// OpenPostgres opens a PostgreSQL database identified by databaseURL (a
+// openPostgres opens a PostgreSQL database identified by databaseURL (a
 // postgres://user:pass@host:port/dbname DSN) and applies any migrations
-// that haven't run yet. See ADR 0013 for when a backend should offer this
-// instead of (or alongside) Open.
-func OpenPostgres(databaseURL string) (*DB, error) {
+// that haven't run yet.
+func openPostgres(databaseURL string) (*DB, error) {
 	sqlDB, err := sql.Open("pgx", databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)

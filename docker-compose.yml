@@ -6,10 +6,9 @@ services:
       - "8080:8080"
     environment:
       LISTEN_ADDR: ":8080"
-      DATABASE_PATH: /data/notes.db
-      # Optional: set to a postgres:// DSN to use PostgreSQL instead of the
-      # default embedded SQLite file (ADR 0013). Leave unset for SQLite.
-      DATABASE_URL: ${DATABASE_URL:-}
+      # A SQLite file path (default) or a postgres://... DSN to use
+      # PostgreSQL instead (ADR 0013).
+      DATABASE_URL: ${DATABASE_URL:-/data/notes.db}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}

@@ -30,12 +30,7 @@ func run() error {
 		return err
 	}
 
-	var sqlDB *db.DB
-	if cfg.DatabaseURL != "" {
-		sqlDB, err = db.OpenPostgres(cfg.DatabaseURL)
-	} else {
-		sqlDB, err = db.Open(cfg.DatabasePath)
-	}
+	sqlDB, err := db.Open(cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}

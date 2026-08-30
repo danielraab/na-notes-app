@@ -20,9 +20,9 @@ func TestOpenPostgresAndMigrate(t *testing.T) {
 		t.Skip("POSTGRES_TEST_URL not set; skipping PostgreSQL integration test")
 	}
 
-	d, err := OpenPostgres(url)
+	d, err := Open(url)
 	if err != nil {
-		t.Fatalf("OpenPostgres: %v", err)
+		t.Fatalf("Open: %v", err)
 	}
 	t.Cleanup(func() { d.Close() })
 

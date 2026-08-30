@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=build /out/server ./server
 RUN mkdir -p /data && chown app:app /data
 VOLUME ["/data"]
-ENV DATABASE_PATH=/data/notes.db
+ENV DATABASE_URL=/data/notes.db
 ENV LISTEN_ADDR=:8080
 EXPOSE 8080
 USER app

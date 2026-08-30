@@ -96,8 +96,7 @@ backend ones:
 | `ALLOWED_ORIGINS` | CORS allow-list, must include the frontend's origin |
 | `SESSION_SECRET` | Server-side session signing/encryption key |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Outgoing mail for share/mention notifications |
-| `DATABASE_PATH` | SQLite file path inside the backend container |
-| `DATABASE_URL` | Optional; when set, connects to PostgreSQL instead of SQLite (ADR 0013) |
+| `DATABASE_URL` | Database location; scheme selects the engine — a path/`sqlite://`/`file:` value for SQLite (default), or `postgres://...` for PostgreSQL (ADR 0013) |
 
 ## Contributing a new implementation
 

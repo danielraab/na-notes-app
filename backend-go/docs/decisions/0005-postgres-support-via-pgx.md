@@ -19,7 +19,14 @@ whether to fork queries per engine or keep them shared.
 - **Driver:** `github.com/jackc/pgx/v5/stdlib`, the `database/sql`-compatible
   shim over `pgx`. Like `modernc.org/sqlite`, it's pure Go, so the Docker
   build stays `CGO_ENABLED=0` with no C toolchain needed. Registered under
-  driver name `"pgx"`, opened via `db.OpenPostgres`.
+  driver name `"pgx"`.
+- **One entry point, dispatched by scheme.** `db.Open(databaseURL)` is the
+  only exported constructor: it picks the engine from `databaseURL`'s
+  scheme (`postgres://`/`postgresql://` → PostgreSQL via the internal
+  `openPostgres`; anything else — a bare path, `sqlite://...`, `file:...`
+  — → SQLite via the internal `openSQLite`). Callers, including
+  `cmd/server/main.go` and this package's own tests, never need to know
+  which engine they'll get; they just pass `DATABASE_URL` through.
 - **Placeholders stay `?` everywhere.** Rather than rewriting every query
   in `internal/notes`/`internal/users`/`internal/auth` (or forking them per
   engine), `internal/db.DB` wraps `*sql.DB` and rewrites `?` to `$1, $2,
@@ -68,10 +75,9 @@ whether to fork queries per engine or keep them shared.
   client/server database and benefits from a normal connection pool.
 - Verified against a live PostgreSQL 16 instance: `internal/db`'s
   integration test (`POSTGRES_TEST_URL=... go test ./internal/db/...`)
-  exercises `OpenPostgres`, the migration path, and every
-  dialect-sensitive construct above (rebound placeholders, both
-  `ON CONFLICT` forms, row-value comparisons, `RowsAffected`) directly
-  against it.
+  exercises `Open`, the migration path, and every dialect-sensitive
+  construct above (rebound placeholders, both `ON CONFLICT` forms,
+  row-value comparisons, `RowsAffected`) directly against it.
 - No automatic data migration between SQLite and PostgreSQL — switching
   `DATABASE_URL` on an existing deployment starts from an empty schema on
-  the new engine, same as pointing `DATABASE_PATH` at a fresh file.
+  the new engine, same as pointing it at a fresh SQLite file.
