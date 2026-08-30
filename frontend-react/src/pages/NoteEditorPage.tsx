@@ -108,7 +108,7 @@ export function NoteEditorPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page max-md:flex max-md:min-h-[calc(100dvh-3.5rem)] max-md:flex-col">
       {conflict && (
         <div className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-line bg-canvas-subtle px-4 py-3">
           <p>This note was changed by someone else since you opened it. Your unsaved edits are still below.</p>
@@ -119,7 +119,7 @@ export function NoteEditorPage() {
       )}
 
       <input
-        className="mb-4 block w-full rounded-md border border-line bg-canvas px-2.5 py-2 text-2xl font-semibold text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+        className="mb-4 block w-full flex-none rounded-md border border-line bg-canvas px-2.5 py-2 text-2xl font-semibold text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
         value={title}
         onChange={(e) => {
           setTitle(e.target.value);
@@ -141,7 +141,7 @@ export function NoteEditorPage() {
         />
       )}
 
-      <div className="mt-4 flex items-center gap-2.5">
+      <div className="mt-4 flex flex-none items-center gap-2.5">
         {!readOnly && (
           <button
             type="button"

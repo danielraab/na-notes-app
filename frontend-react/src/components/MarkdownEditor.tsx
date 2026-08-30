@@ -60,8 +60,8 @@ export function MarkdownEditor({ value, onChange }: Props) {
   }
 
   return (
-    <div>
-      <div className="mb-2 flex gap-1">
+    <div className="max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col">
+      <div className="mb-2 flex flex-none gap-1">
         <button
           type="button"
           className={!showPreview ? 'btn btn-primary' : 'btn'}
@@ -81,10 +81,10 @@ export function MarkdownEditor({ value, onChange }: Props) {
       {showPreview ? (
         <MarkdownView markdown={value} />
       ) : (
-        <div className="relative">
+        <div className="relative max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col">
           <textarea
             ref={textareaRef}
-            className="w-full resize-y rounded-md border border-line bg-canvas p-3 font-mono text-sm text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full resize-y rounded-md border border-line bg-canvas p-3 font-mono text-sm text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 max-md:min-h-0 max-md:flex-1 max-md:resize-none"
             value={value}
             onChange={handleChange}
             onKeyUp={handleKeyUp}
