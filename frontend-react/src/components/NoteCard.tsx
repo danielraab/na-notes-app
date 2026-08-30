@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
@@ -18,6 +18,29 @@ export function NoteCard({ note }: { note: NoteSummary }) {
   const href = `/notes/${note.id}`;
   const [content, setContent] = useState(note.contentMarkdown);
   const canEdit = note.myPermission !== 'read';
+
+  const clampRef = useRef<HTMLDivElement>(null);
+  const [isClamped, setIsClamped] = useState(false);
+
+  // The fade shadow should only show when content is actually cut off by
+  // the card's max-height. Re-measured whenever the rendered content
+  // changes size — including asynchronously, e.g. an image inside the
+  // note finishing loading after the initial render.
+  useLayoutEffect(() => {
+    const clamp = clampRef.current;
+    const rendered = clamp?.firstElementChild;
+    if (!clamp || !rendered) return;
+
+    function checkOverflow() {
+      if (!clamp) return;
+      setIsClamped(clamp.scrollHeight > clamp.clientHeight + 1);
+    }
+
+    checkOverflow();
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(rendered);
+    return () => observer.disconnect();
+  }, [content]);
 
   // The card renders the full note, which can itself contain <a> tags, so
   // the card can't be an <a>. The title link is the accessible navigation
@@ -61,13 +84,15 @@ export function NoteCard({ note }: { note: NoteSummary }) {
           {note.title}
         </Link>
       </h3>
-      <div className="relative max-h-96 overflow-hidden">
+      <div ref={clampRef} className="relative max-h-96 overflow-hidden">
         <MarkdownView
           markdown={content}
           className="markdown-view--card"
           onToggleTask={canEdit ? handleToggleTask : undefined}
         />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas-subtle" />
+        {isClamped && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas-subtle" />
+        )}
       </div>
       <div className="mt-3 flex gap-2.5 text-xs text-fg-muted">
         <span>{PERMISSION_LABEL[note.myPermission]}</span>
