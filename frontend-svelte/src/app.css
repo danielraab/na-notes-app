@@ -1,0 +1,725 @@
+/* Semantic palette. Deliberately not the React frontend's violet scheme —
+   a cool teal accent on a warm stone-gray canvas. See
+   docs/decisions/0006-plain-css-styling.md. */
+:root {
+  --canvas: #ffffff;
+  --canvas-subtle: #f4f6f5;
+  --canvas-raised: #ffffff;
+  --fg: #1c2321;
+  --fg-muted: #5b6b66;
+  --line: #dbe4e0;
+  --accent: #0f766e;
+  --accent-hover: #0b5c56;
+  --accent-fg: #ffffff;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+  --shadow: 0 1px 2px rgba(28, 35, 33, 0.06), 0 4px 10px rgba(28, 35, 33, 0.06);
+
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0f1715;
+    --canvas-subtle: #17211e;
+    --canvas-raised: #182420;
+    --fg: #e6efec;
+    --fg-muted: #93a29c;
+    --line: #253430;
+    --accent: #5eead4;
+    --accent-hover: #99f6e4;
+    --accent-fg: #08201c;
+    --danger: #f87171;
+    --danger-bg: #2a1414;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--fg);
+  background: var(--canvas);
+}
+
+a {
+  color: inherit;
+}
+
+.page {
+  margin: 0 auto;
+  max-width: 900px;
+  padding: 1.75rem 1.25rem 4rem;
+}
+
+/* Buttons: pill-shaped, filled-muted by default — a different shape
+   language from the React frontend's rounded-rectangle outline buttons. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--canvas-subtle);
+  color: var(--fg);
+  padding: 0.5rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    opacity 0.15s;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn:disabled:hover {
+  border-color: var(--line);
+}
+
+.btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+.field {
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--fg);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ---- Header ---- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas);
+}
+
+.site-header-inner {
+  margin: 0 auto;
+  max-width: 900px;
+  height: 3.75rem;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.7rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.brand-name {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ---- User menu ---- */
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--canvas-subtle);
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.user-menu-trigger:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.user-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 60;
+  width: 15rem;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  border: 1px solid var(--line);
+  background: var(--canvas-raised);
+  box-shadow: var(--shadow);
+}
+
+.user-menu-header {
+  border-bottom: 1px solid var(--line);
+  padding: 0.65rem 0.85rem;
+}
+
+.user-menu-name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-email {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.875rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background: var(--canvas-subtle);
+}
+
+/* ---- Banners ---- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--line);
+  background: var(--canvas-subtle);
+  padding: 0.85rem 1.1rem;
+}
+
+.banner p {
+  margin: 0;
+}
+
+/* ---- Note preview (logged-out sample) ---- */
+
+.note-preview {
+  width: 100%;
+  max-width: 22rem;
+  border-radius: 0.9rem;
+  border: 1px dashed var(--line);
+  background: var(--canvas-subtle);
+  padding: 1.1rem;
+}
+
+.note-preview h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+}
+
+.note-preview p {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+/* ---- Note grid / cards ---- */
+
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 1rem;
+}
+
+.note-card {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 0.9rem;
+  background: var(--canvas-raised);
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  transition: box-shadow 0.15s;
+}
+
+.note-card:hover {
+  box-shadow:
+    0 1px 2px rgba(28, 35, 33, 0.08),
+    0 8px 20px rgba(15, 118, 110, 0.14);
+}
+
+.note-card-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.note-card-title a {
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.note-card-title a:hover {
+  text-decoration: underline;
+}
+
+.note-card-clip {
+  position: relative;
+  max-height: 24rem;
+  overflow: hidden;
+}
+
+.note-card-fade {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3rem;
+  background: linear-gradient(to bottom, transparent, var(--canvas-raised));
+}
+
+.note-card-meta {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.65rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.feed-status {
+  padding: 1.5rem 0;
+  text-align: center;
+  color: var(--fg-muted);
+}
+
+/* ---- Mention / share autocomplete ---- */
+
+.suggest-list {
+  position: absolute;
+  z-index: 10;
+  margin-top: 0.25rem;
+  max-width: 16rem;
+  list-style: none;
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--canvas-raised);
+  box-shadow: var(--shadow);
+  padding: 0.25rem;
+}
+
+.suggest-list button {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.suggest-list button:hover {
+  background: var(--canvas-subtle);
+}
+
+/* ---- Editor ---- */
+
+.editor-title {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  padding: 0.6rem 0.85rem;
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--fg);
+  outline: none;
+}
+
+.editor-title:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.editor-textarea-wrap {
+  position: relative;
+}
+
+.editor-textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  border-radius: 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--fg);
+  padding: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.editor-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.editor-actions {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.public-pill {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  border-radius: 999px;
+  background: var(--canvas-subtle);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+/* ---- Share dialog ---- */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 21, 0.45);
+  padding: 1rem;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 30rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 1rem;
+  background: var(--canvas-raised);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.dialog h2 {
+  margin: 0 0 1rem;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+}
+
+.dialog section {
+  margin-bottom: 1.25rem;
+}
+
+.dialog h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+
+.share-search-row {
+  position: relative;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.share-search-row .field {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0;
+}
+
+.share-row-name {
+  flex: 1;
+}
+
+.share-row-permission {
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.public-link-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.public-link-row .field {
+  flex: 1;
+}
+
+/* ---- Markdown rendering ----
+   Rendered Markdown is injected as sanitized HTML (docs/decisions/0004),
+   so its elements can't carry component classes — styled here instead. */
+
+.markdown-view {
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.markdown-view > :first-child {
+  margin-top: 0;
+}
+
+.markdown-view h1,
+.markdown-view h2,
+.markdown-view h3 {
+  margin: 1.4rem 0 0.5rem;
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+.markdown-view h1 {
+  font-size: 1.5rem;
+}
+
+.markdown-view h2 {
+  font-size: 1.25rem;
+}
+
+.markdown-view h3 {
+  font-size: 1.1rem;
+}
+
+.markdown-view p,
+.markdown-view ul,
+.markdown-view ol,
+.markdown-view blockquote,
+.markdown-view pre {
+  margin: 0.75rem 0;
+}
+
+.markdown-view ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.markdown-view ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.markdown-view a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.markdown-view code {
+  border-radius: 0.3rem;
+  background: var(--canvas-subtle);
+  padding: 0.1rem 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.markdown-view pre {
+  overflow-x: auto;
+  border-radius: 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--canvas-subtle);
+  padding: 0.75rem;
+}
+
+.markdown-view pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-view blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75rem;
+  color: var(--fg-muted);
+}
+
+/* GFM task list items: drop the list marker but keep the list's normal
+   indentation so nested checklists still nest. */
+.markdown-view li:has(> input[type='checkbox']:first-child) {
+  list-style: none;
+}
+
+.markdown-view li > input[type='checkbox']:first-child {
+  margin-right: 0.5rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  vertical-align: -0.125em;
+  accent-color: var(--accent);
+}
+
+.markdown-view li > input[type='checkbox']:first-child:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Compact variant for dashboard note cards. */
+.markdown-view--card {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.markdown-view--card h1,
+.markdown-view--card h2,
+.markdown-view--card h3 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.markdown-view--card p,
+.markdown-view--card ul,
+.markdown-view--card ol,
+.markdown-view--card blockquote,
+.markdown-view--card pre {
+  margin: 0.4rem 0;
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.public-note-title {
+  margin: 0 0 1rem;
+  font-family: var(--font-serif);
+  font-size: 2rem;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+}
+
+.signin-prompt {
+  margin-bottom: 1rem;
+}
