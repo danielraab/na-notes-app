@@ -2,10 +2,10 @@
 //! login; there is no separate registration flow.
 
 use chrono::{DateTime, Utc};
-use rusqlite::{params, OptionalExtension};
 
 use crate::apperr::{AppError, Result};
-use crate::db::Db;
+use crate::db::{Db, Row};
+use crate::params;
 use crate::timefmt::{fmt_time, parse_time};
 
 #[derive(Debug, Clone)]
@@ -49,76 +49,75 @@ impl Repository {
         display_name: String,
         avatar_url: String,
     ) -> Result<User> {
-        self.db
-            .call(move |conn| {
-                let avatar_url = if avatar_url.is_empty() {
-                    None
-                } else {
-                    Some(avatar_url)
-                };
+        let avatar_url = if avatar_url.is_empty() {
+            None
+        } else {
+            Some(avatar_url)
+        };
 
-                let existing = conn
-                    .query_row(
-                        "SELECT id, created_at FROM users WHERE oidc_subject = ?1",
-                        [&subject],
-                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        let existing = self
+            .db
+            .query_opt(
+                "SELECT id, created_at FROM users WHERE oidc_subject = ?1",
+                params![&subject],
+            )
+            .await?;
+
+        match existing {
+            None => {
+                let id = uuid::Uuid::new_v4().to_string();
+                let now = Utc::now();
+                self.db
+                    .execute(
+                        "INSERT INTO users (id, oidc_subject, email, display_name, avatar_url, created_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        params![&id, subject, &email, &display_name, &avatar_url, fmt_time(now)],
                     )
-                    .optional()?;
-
-                match existing {
-                    None => {
-                        let id = uuid::Uuid::new_v4().to_string();
-                        let now = Utc::now();
-                        conn.execute(
-                            "INSERT INTO users (id, oidc_subject, email, display_name, avatar_url, created_at)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            params![id, subject, email, display_name, avatar_url, fmt_time(now)],
-                        )?;
-                        Ok(User {
-                            id,
-                            email,
-                            display_name,
-                            avatar_url,
-                            created_at: now,
-                        })
-                    }
-                    Some((id, created_at)) => {
-                        conn.execute(
-                            "UPDATE users SET email = ?1, display_name = ?2, avatar_url = ?3 WHERE id = ?4",
-                            params![email, display_name, avatar_url, id],
-                        )?;
-                        Ok(User {
-                            id,
-                            email,
-                            display_name,
-                            avatar_url,
-                            created_at: parse_time(&created_at),
-                        })
-                    }
-                }
-            })
-            .await
+                    .await?;
+                Ok(User {
+                    id,
+                    email,
+                    display_name,
+                    avatar_url,
+                    created_at: now,
+                })
+            }
+            Some(row) => {
+                let id = row.text(0)?;
+                let created_at = parse_time(&row.text(1)?);
+                self.db
+                    .execute(
+                        "UPDATE users SET email = ?1, display_name = ?2, avatar_url = ?3 WHERE id = ?4",
+                        params![&email, &display_name, &avatar_url, &id],
+                    )
+                    .await?;
+                Ok(User {
+                    id,
+                    email,
+                    display_name,
+                    avatar_url,
+                    created_at,
+                })
+            }
+        }
     }
 
     pub async fn get_by_id(&self, id: String) -> Result<User> {
-        self.db
-            .call(move |conn| {
-                conn.query_row(
-                    "SELECT id, email, display_name, avatar_url, created_at FROM users WHERE id = ?1",
-                    [&id],
-                    |row| {
-                        Ok(User {
-                            id: row.get(0)?,
-                            email: row.get(1)?,
-                            display_name: row.get(2)?,
-                            avatar_url: row.get(3)?,
-                            created_at: parse_time(&row.get::<_, String>(4)?),
-                        })
-                    },
-                )
-                .map_err(AppError::from)
-            })
-            .await
+        let row = self
+            .db
+            .query_opt(
+                "SELECT id, email, display_name, avatar_url, created_at FROM users WHERE id = ?1",
+                params![id],
+            )
+            .await?
+            .ok_or(AppError::NotFound)?;
+        Ok(User {
+            id: row.text(0)?,
+            email: row.text(1)?,
+            display_name: row.text(2)?,
+            avatar_url: row.opt_text(3)?,
+            created_at: parse_time(&row.text(4)?),
+        })
     }
 
     /// Returns users whose display name or email starts with `q`, excluding
@@ -129,49 +128,40 @@ impl Repository {
         q: String,
         limit: i64,
     ) -> Result<Vec<Summary>> {
-        self.db
-            .call(move |conn| {
-                let like = format!("{}%", q.to_lowercase());
-                let mut stmt = conn.prepare(
-                    "SELECT id, display_name, avatar_url FROM users
-                     WHERE id != ?1 AND (LOWER(display_name) LIKE ?2 OR LOWER(email) LIKE ?2)
-                     ORDER BY display_name LIMIT ?3",
-                )?;
-                let rows = stmt.query_map(params![exclude_user_id, like, limit], |row| {
-                    Ok(Summary {
-                        id: row.get(0)?,
-                        display_name: row.get(1)?,
-                        avatar_url: row.get(2)?,
-                    })
-                })?;
-                let mut out = Vec::new();
-                for r in rows {
-                    out.push(r?);
-                }
-                Ok(out)
-            })
-            .await
+        let like = format!("{}%", q.to_lowercase());
+        let rows = self
+            .db
+            .query_all(
+                "SELECT id, display_name, avatar_url FROM users
+                 WHERE id != ?1 AND (LOWER(display_name) LIKE ?2 OR LOWER(email) LIKE ?2)
+                 ORDER BY display_name LIMIT ?3",
+                params![exclude_user_id, like, limit],
+            )
+            .await?;
+        rows.iter().map(row_to_summary).collect()
     }
+}
+
+fn row_to_summary(row: &Row) -> Result<Summary> {
+    Ok(Summary {
+        id: row.text(0)?,
+        display_name: row.text(1)?,
+        avatar_url: row.opt_text(2)?,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn new_test_repo() -> (tempfile::TempDir, Repository) {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let db =
-            crate::db::Db::open(dir.path().join("test.db").to_str().unwrap()).expect("open db");
-        (dir, Repository::new(db))
-    }
+    use crate::db::testsupport::TestDb;
 
     // Regression test: created_at is stored as TEXT and must be parsed
-    // back into DateTime<Utc> by hand — rusqlite returns TEXT columns as
-    // strings, so a mismatched column type compiles but fails at run time
-    // on every read.
+    // back into DateTime<Utc> by hand — neither engine hands back a
+    // timestamp type for it, so a mismatched read fails at run time.
     #[tokio::test]
     async fn upsert_and_get_by_id_round_trips_created_at() {
-        let (_dir, repo) = new_test_repo();
+        let db = TestDb::open().await;
+        let repo = Repository::new(db.handle());
 
         let created = repo
             .upsert_from_oidc(
@@ -211,7 +201,8 @@ mod tests {
 
     #[tokio::test]
     async fn search_excludes_caller() {
-        let (_dir, repo) = new_test_repo();
+        let db = TestDb::open().await;
+        let repo = Repository::new(db.handle());
 
         let me = repo
             .upsert_from_oidc(

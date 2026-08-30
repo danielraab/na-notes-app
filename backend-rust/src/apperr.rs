@@ -29,14 +29,8 @@ impl fmt::Display for AppError {
 
 impl std::error::Error for AppError {}
 
-impl From<rusqlite::Error> for AppError {
-    fn from(err: rusqlite::Error) -> Self {
-        if matches!(err, rusqlite::Error::QueryReturnedNoRows) {
-            AppError::NotFound
-        } else {
-            AppError::Internal(err.to_string())
-        }
-    }
-}
+// Conversions from a database driver's own error type live with that
+// driver's backend in `src/db`, so nothing outside it depends on which
+// engine is configured.
 
 pub type Result<T> = std::result::Result<T, AppError>;

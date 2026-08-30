@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use chrono::Utc;
-use rusqlite::{params, OptionalExtension};
 
 use crate::apperr::{AppError, Result};
-use crate::db::Db;
+use crate::db::{Db, Row};
+use crate::params;
 use crate::randtoken;
 use crate::timefmt::{fmt_time, parse_time};
 
@@ -27,32 +27,36 @@ pub struct Repository {
     db: Db,
 }
 
-fn row_to_note(row: &rusqlite::Row) -> rusqlite::Result<Note> {
-    let public_note_id: Option<String> = row.get(7)?;
+const SELECT_NOTE: &str = "SELECT n.id, n.owner_id, n.title, n.content_markdown, n.version,
+            n.created_at, n.updated_at, nps.note_id
+     FROM notes n
+     LEFT JOIN note_public_shares nps ON nps.note_id = n.id";
+
+fn row_to_note(row: &Row) -> Result<Note> {
     Ok(Note {
-        id: row.get(0)?,
-        owner_id: row.get(1)?,
-        title: row.get(2)?,
-        content_markdown: row.get(3)?,
-        version: row.get(4)?,
-        created_at: parse_time(&row.get::<_, String>(5)?),
-        updated_at: parse_time(&row.get::<_, String>(6)?),
-        is_public: public_note_id.is_some(),
-        my_permission: Permission::Owner, // caller (service layer) fills this in
+        id: row.text(0)?,
+        owner_id: row.text(1)?,
+        title: row.text(2)?,
+        content_markdown: row.text(3)?,
+        version: row.int(4)?,
+        created_at: parse_time(&row.text(5)?),
+        updated_at: parse_time(&row.text(6)?),
+        is_public: row.opt_text(7)?.is_some(),
+        // The caller (service layer) resolves the viewer's real permission.
+        my_permission: Permission::Owner,
     })
 }
 
-fn get_by_id_sync(conn: &rusqlite::Connection, id: &str) -> Result<Note> {
-    conn.query_row(
-        "SELECT n.id, n.owner_id, n.title, n.content_markdown, n.version, n.created_at, n.updated_at, nps.note_id
-         FROM notes n
-         LEFT JOIN note_public_shares nps ON nps.note_id = n.id
-         WHERE n.id = ?1",
-        [id],
-        row_to_note,
-    )
-    .optional()?
-    .ok_or(AppError::NotFound)
+fn row_to_summary(row: &Row) -> Result<Summary> {
+    Ok(Summary {
+        id: row.text(0)?,
+        title: row.text(1)?,
+        content_markdown: row.text(2)?,
+        owner_id: row.text(3)?,
+        updated_at: parse_time(&row.text(4)?),
+        my_permission: Permission::parse(&row.text(5)?).unwrap_or(Permission::Read),
+        is_public: row.int(6)? == 1,
+    })
 }
 
 impl Repository {
@@ -61,34 +65,37 @@ impl Repository {
     }
 
     pub async fn create(&self, owner_id: String, title: String, content: String) -> Result<Note> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = Utc::now();
         self.db
-            .call(move |conn| {
-                let id = uuid::Uuid::new_v4().to_string();
-                let now = Utc::now();
-                conn.execute(
-                    "INSERT INTO notes (id, owner_id, title, content_markdown, version, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)",
-                    params![id, owner_id, title, content, fmt_time(now)],
-                )?;
-                Ok(Note {
-                    id,
-                    owner_id,
-                    title,
-                    content_markdown: content,
-                    version: 1,
-                    is_public: false,
-                    created_at: now,
-                    updated_at: now,
-                    my_permission: Permission::Owner,
-                })
-            })
-            .await
+            .execute(
+                "INSERT INTO notes (id, owner_id, title, content_markdown, version, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)",
+                params![&id, &owner_id, &title, &content, fmt_time(now)],
+            )
+            .await?;
+        Ok(Note {
+            id,
+            owner_id,
+            title,
+            content_markdown: content,
+            version: 1,
+            is_public: false,
+            created_at: now,
+            updated_at: now,
+            my_permission: Permission::Owner,
+        })
     }
 
     /// Fetches the raw note without regard to who is asking; callers (the
     /// service layer) are responsible for authorization decisions.
     pub async fn get_by_id(&self, id: String) -> Result<Note> {
-        self.db.call(move |conn| get_by_id_sync(conn, &id)).await
+        let row = self
+            .db
+            .query_opt(&format!("{SELECT_NOTE} WHERE n.id = ?1"), params![id])
+            .await?
+            .ok_or(AppError::NotFound)?;
+        row_to_note(&row)
     }
 
     /// Applies an optimistic-concurrency-checked edit (ADR 0008): it only
@@ -101,34 +108,33 @@ impl Repository {
         content: String,
         expected_version: i64,
     ) -> Result<UpdateOutcome> {
-        self.db
-            .call(move |conn| {
-                let now = fmt_time(Utc::now());
-                let affected = conn.execute(
-                    "UPDATE notes SET title = ?1, content_markdown = ?2, version = version + 1, updated_at = ?3
-                     WHERE id = ?4 AND version = ?5",
-                    params![title, content, now, id, expected_version],
-                )?;
-                if affected == 0 {
-                    // not-found takes precedence over conflict
-                    let current = get_by_id_sync(conn, &id)?;
-                    return Ok(UpdateOutcome::Conflict(current));
-                }
-                Ok(UpdateOutcome::Updated(get_by_id_sync(conn, &id)?))
-            })
-            .await
+        let affected = self
+            .db
+            .execute(
+                "UPDATE notes SET title = ?1, content_markdown = ?2, version = version + 1, updated_at = ?3
+                 WHERE id = ?4 AND version = ?5",
+                params![title, content, fmt_time(Utc::now()), &id, expected_version],
+            )
+            .await?;
+
+        // A missing note is reported as not-found, which takes precedence
+        // over reporting a version conflict.
+        let current = self.get_by_id(id).await?;
+        if affected == 0 {
+            return Ok(UpdateOutcome::Conflict(current));
+        }
+        Ok(UpdateOutcome::Updated(current))
     }
 
     pub async fn delete(&self, id: String) -> Result<()> {
-        self.db
-            .call(move |conn| {
-                let affected = conn.execute("DELETE FROM notes WHERE id = ?1", [&id])?;
-                if affected == 0 {
-                    return Err(AppError::NotFound);
-                }
-                Ok(())
-            })
-            .await
+        let affected = self
+            .db
+            .execute("DELETE FROM notes WHERE id = ?1", params![id])
+            .await?;
+        if affected == 0 {
+            return Err(AppError::NotFound);
+        }
+        Ok(())
     }
 
     /// Returns the explicit share permission granted to `user_id` on
@@ -138,18 +144,17 @@ impl Repository {
         note_id: String,
         user_id: String,
     ) -> Result<Option<Permission>> {
-        self.db
-            .call(move |conn| {
-                let p: Option<String> = conn
-                    .query_row(
-                        "SELECT permission FROM note_shares WHERE note_id = ?1 AND user_id = ?2",
-                        [&note_id, &user_id],
-                        |row| row.get(0),
-                    )
-                    .optional()?;
-                Ok(p.and_then(|p| Permission::parse(&p)))
-            })
-            .await
+        let row = self
+            .db
+            .query_opt(
+                "SELECT permission FROM note_shares WHERE note_id = ?1 AND user_id = ?2",
+                params![note_id, user_id],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Permission::parse(&row.text(0)?)),
+            None => Ok(None),
+        }
     }
 
     /// Returns a cursor page of notes owned by, or shared with, `user_id`,
@@ -160,93 +165,69 @@ impl Repository {
         cursor: String,
         limit: i64,
     ) -> Result<Page> {
-        self.db
-            .call(move |conn| {
-                let (cursor_updated_at, cursor_id) = if cursor.is_empty() {
-                    (String::new(), String::new())
-                } else {
-                    let c = decode_cursor(&cursor).map_err(AppError::Validation)?;
-                    (c.updated_at, c.id)
-                };
+        // The cursor predicate (and its parameters) are appended only when
+        // paging past the first page, so the statement never binds a
+        // placeholder it doesn't use.
+        let (cursor_clause, params) = if cursor.is_empty() {
+            ("", params![&user_id, limit + 1])
+        } else {
+            let c = decode_cursor(&cursor).map_err(AppError::Validation)?;
+            (
+                "AND (n.updated_at, n.id) < (?3, ?4)",
+                params![&user_id, limit + 1, c.updated_at, c.id],
+            )
+        };
 
-                // The cursor placeholders (?4, ?5) are always bound, even
-                // with no cursor, so the statement's parameter count is
-                // constant; `?4 = ''` (never a valid timestamp) then makes
-                // the comparison a no-op for the first page.
-                let query = "SELECT n.id, n.title, n.content_markdown, n.owner_id, n.updated_at,
-                            CASE WHEN n.owner_id = ?1 THEN 'owner' ELSE ns.permission END AS permission,
-                            CASE WHEN nps.note_id IS NOT NULL THEN 1 ELSE 0 END AS is_public
-                     FROM notes n
-                     LEFT JOIN note_shares ns ON ns.note_id = n.id AND ns.user_id = ?2
-                     LEFT JOIN note_public_shares nps ON nps.note_id = n.id
-                     WHERE (n.owner_id = ?1 OR ns.user_id = ?2)
-                     AND (?4 = '' OR (n.updated_at, n.id) < (?4, ?5))
-                     ORDER BY n.updated_at DESC, n.id DESC
-                     LIMIT ?3";
+        let sql = format!(
+            "SELECT n.id, n.title, n.content_markdown, n.owner_id, n.updated_at,
+                    CASE WHEN n.owner_id = ?1 THEN 'owner' ELSE ns.permission END AS permission,
+                    CASE WHEN nps.note_id IS NOT NULL THEN 1 ELSE 0 END AS is_public
+             FROM notes n
+             LEFT JOIN note_shares ns ON ns.note_id = n.id AND ns.user_id = ?1
+             LEFT JOIN note_public_shares nps ON nps.note_id = n.id
+             WHERE (n.owner_id = ?1 OR ns.user_id = ?1)
+             {cursor_clause}
+             ORDER BY n.updated_at DESC, n.id DESC
+             LIMIT ?2"
+        );
 
-                let mut stmt = conn.prepare(query)?;
-                let limit_plus_one = limit + 1;
-                let rows = stmt.query_map(
-                    params![user_id, user_id, limit_plus_one, cursor_updated_at, cursor_id],
-                    |row| {
-                        let is_public: i64 = row.get(6)?;
-                        Ok(Summary {
-                            id: row.get(0)?,
-                            title: row.get(1)?,
-                            content_markdown: row.get(2)?,
-                            owner_id: row.get(3)?,
-                            updated_at: parse_time(&row.get::<_, String>(4)?),
-                            my_permission: Permission::parse(&row.get::<_, String>(5)?)
-                                .unwrap_or(Permission::Read),
-                            is_public: is_public == 1,
-                        })
-                    },
-                )?;
+        let rows = self.db.query_all(&sql, params).await?;
+        let mut items: Vec<Summary> = rows.iter().map(row_to_summary).collect::<Result<_>>()?;
 
-                let mut items = Vec::new();
-                for r in rows {
-                    items.push(r?);
-                }
-
-                let mut page = Page::default();
-                if items.len() as i64 > limit {
-                    let last = items[(limit - 1) as usize].clone();
-                    items.truncate(limit as usize);
-                    page.next_cursor = encode_cursor(&fmt_time(last.updated_at), &last.id);
-                }
-                page.items = items;
-                Ok(page)
-            })
-            .await
+        let mut page = Page::default();
+        if items.len() as i64 > limit {
+            let last = items[(limit - 1) as usize].clone();
+            items.truncate(limit as usize);
+            page.next_cursor = encode_cursor(&fmt_time(last.updated_at), &last.id);
+        }
+        page.items = items;
+        Ok(page)
     }
 
     pub async fn list_shares(&self, note_id: String) -> Result<Vec<UserShare>> {
-        self.db
-            .call(move |conn| {
-                let mut stmt = conn.prepare(
-                    "SELECT u.id, u.display_name, COALESCE(u.avatar_url, ''), ns.permission, ns.created_at
-                     FROM note_shares ns
-                     JOIN users u ON u.id = ns.user_id
-                     WHERE ns.note_id = ?1
-                     ORDER BY ns.created_at",
-                )?;
-                let rows = stmt.query_map([&note_id], |row| {
-                    Ok(UserShare {
-                        user_id: row.get(0)?,
-                        display_name: row.get(1)?,
-                        avatar_url: row.get(2)?,
-                        permission: Permission::parse(&row.get::<_, String>(3)?)
-                            .unwrap_or(Permission::Read),
-                        created_at: parse_time(&row.get::<_, String>(4)?),
-                    })
-                })?;
-                let mut out = Vec::new();
-                for r in rows {
-                    out.push(r?);
-                }
-                Ok(out)
+        let rows = self
+            .db
+            .query_all(
+                "SELECT u.id, u.display_name, COALESCE(u.avatar_url, ''), ns.permission, ns.created_at
+                 FROM note_shares ns
+                 JOIN users u ON u.id = ns.user_id
+                 WHERE ns.note_id = ?1
+                 ORDER BY ns.created_at",
+                params![note_id],
+            )
+            .await?;
+
+        rows.iter()
+            .map(|row| {
+                Ok(UserShare {
+                    user_id: row.text(0)?,
+                    display_name: row.text(1)?,
+                    avatar_url: row.text(2)?,
+                    permission: Permission::parse(&row.text(3)?).unwrap_or(Permission::Read),
+                    created_at: parse_time(&row.text(4)?),
+                })
             })
-            .await
+            .collect()
     }
 
     /// Grants (or changes the permission of) `user_id`'s access to
@@ -261,153 +242,137 @@ impl Repository {
         permission: Permission,
     ) -> Result<()> {
         self.db
-            .call(move |conn| {
-                conn.execute(
-                    "INSERT INTO note_shares (note_id, user_id, permission, created_at)
-                     VALUES (?1, ?2, ?3, ?4)
-                     ON CONFLICT(note_id, user_id) DO UPDATE SET permission = excluded.permission",
-                    params![note_id, user_id, permission.as_str(), fmt_time(Utc::now())],
-                )?;
-                Ok(())
-            })
-            .await
+            .execute(
+                "INSERT INTO note_shares (note_id, user_id, permission, created_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(note_id, user_id) DO UPDATE SET permission = excluded.permission",
+                params![note_id, user_id, permission.as_str(), fmt_time(Utc::now())],
+            )
+            .await?;
+        Ok(())
     }
 
     pub async fn delete_share(&self, note_id: String, user_id: String) -> Result<()> {
-        self.db
-            .call(move |conn| {
-                let affected = conn.execute(
-                    "DELETE FROM note_shares WHERE note_id = ?1 AND user_id = ?2",
-                    [&note_id, &user_id],
-                )?;
-                if affected == 0 {
-                    return Err(AppError::NotFound);
-                }
-                Ok(())
-            })
-            .await
+        let affected = self
+            .db
+            .execute(
+                "DELETE FROM note_shares WHERE note_id = ?1 AND user_id = ?2",
+                params![note_id, user_id],
+            )
+            .await?;
+        if affected == 0 {
+            return Err(AppError::NotFound);
+        }
+        Ok(())
     }
 
     pub async fn get_public_share(&self, note_id: String) -> Result<Option<PublicShare>> {
-        self.db
-            .call(move |conn| {
-                let row: Option<(String, String)> = conn
-                    .query_row(
-                        "SELECT token, created_at FROM note_public_shares WHERE note_id = ?1",
-                        [&note_id],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
-                    )
-                    .optional()?;
-                Ok(row.map(|(token, created_at)| PublicShare {
-                    token,
-                    created_at: parse_time(&created_at),
-                }))
-            })
-            .await
+        let row = self
+            .db
+            .query_opt(
+                "SELECT token, created_at FROM note_public_shares WHERE note_id = ?1",
+                params![note_id],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Some(PublicShare {
+                token: row.text(0)?,
+                created_at: parse_time(&row.text(1)?),
+            })),
+            None => Ok(None),
+        }
     }
 
     /// (Re)publishes `note_id` with a freshly generated, unguessable token,
     /// replacing any previous token (ADR 0009).
     pub async fn create_public_share(&self, note_id: String) -> Result<PublicShare> {
+        let token = randtoken::new(PUBLIC_SHARE_TOKEN_BYTES);
+        let now = Utc::now();
         self.db
-            .call(move |conn| {
-                let token = randtoken::new(PUBLIC_SHARE_TOKEN_BYTES);
-                let now = Utc::now();
-                conn.execute(
-                    "INSERT INTO note_public_shares (note_id, token, created_at) VALUES (?1, ?2, ?3)
-                     ON CONFLICT(note_id) DO UPDATE SET token = excluded.token, created_at = excluded.created_at",
-                    params![note_id, token, fmt_time(now)],
-                )?;
-                Ok(PublicShare {
-                    token,
-                    created_at: now,
-                })
-            })
-            .await
+            .execute(
+                "INSERT INTO note_public_shares (note_id, token, created_at) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(note_id) DO UPDATE SET token = excluded.token, created_at = excluded.created_at",
+                params![note_id, &token, fmt_time(now)],
+            )
+            .await?;
+        Ok(PublicShare {
+            token,
+            created_at: now,
+        })
     }
 
     pub async fn delete_public_share(&self, note_id: String) -> Result<()> {
-        self.db
-            .call(move |conn| {
-                let affected = conn.execute(
-                    "DELETE FROM note_public_shares WHERE note_id = ?1",
-                    [&note_id],
-                )?;
-                if affected == 0 {
-                    return Err(AppError::NotFound);
-                }
-                Ok(())
-            })
-            .await
+        let affected = self
+            .db
+            .execute(
+                "DELETE FROM note_public_shares WHERE note_id = ?1",
+                params![note_id],
+            )
+            .await?;
+        if affected == 0 {
+            return Err(AppError::NotFound);
+        }
+        Ok(())
     }
 
     pub async fn get_by_public_token(&self, token: String) -> Result<PublicNoteView> {
-        self.db
-            .call(move |conn| {
-                conn.query_row(
-                    "SELECT n.title, n.content_markdown, n.updated_at
-                     FROM note_public_shares nps
-                     JOIN notes n ON n.id = nps.note_id
-                     WHERE nps.token = ?1",
-                    [&token],
-                    |row| {
-                        Ok(PublicNoteView {
-                            title: row.get(0)?,
-                            content_markdown: row.get(1)?,
-                            updated_at: parse_time(&row.get::<_, String>(2)?),
-                        })
-                    },
-                )
-                .optional()?
-                .ok_or(AppError::NotFound)
-            })
-            .await
+        let row = self
+            .db
+            .query_opt(
+                "SELECT n.title, n.content_markdown, n.updated_at
+                 FROM note_public_shares nps
+                 JOIN notes n ON n.id = nps.note_id
+                 WHERE nps.token = ?1",
+                params![token],
+            )
+            .await?
+            .ok_or(AppError::NotFound)?;
+        Ok(PublicNoteView {
+            title: row.text(0)?,
+            content_markdown: row.text(1)?,
+            updated_at: parse_time(&row.text(2)?),
+        })
     }
 
     /// Returns the set of user IDs already recorded as mentioned in
     /// `note_id`, so the caller can notify only newly added mentions.
     pub async fn existing_mentions(&self, note_id: String) -> Result<HashSet<String>> {
-        self.db
-            .call(move |conn| {
-                let mut stmt =
-                    conn.prepare("SELECT user_id FROM note_mentions WHERE note_id = ?1")?;
-                let rows = stmt.query_map([&note_id], |row| row.get::<_, String>(0))?;
-                let mut set = HashSet::new();
-                for r in rows {
-                    set.insert(r?);
-                }
-                Ok(set)
-            })
-            .await
+        let rows = self
+            .db
+            .query_all(
+                "SELECT user_id FROM note_mentions WHERE note_id = ?1",
+                params![note_id],
+            )
+            .await?;
+        rows.iter().map(|row| row.text(0)).collect()
     }
 
     pub async fn add_mentions(&self, note_id: String, user_ids: Vec<String>) -> Result<()> {
-        self.db
-            .call(move |conn| {
-                let now = fmt_time(Utc::now());
-                for uid in user_ids {
-                    conn.execute(
-                        "INSERT INTO note_mentions (note_id, user_id, created_at) VALUES (?1, ?2, ?3)
-                         ON CONFLICT DO NOTHING",
-                        params![note_id, uid, now],
-                    )?;
-                }
-                Ok(())
-            })
-            .await
+        let now = fmt_time(Utc::now());
+        for uid in user_ids {
+            self.db
+                .execute(
+                    "INSERT INTO note_mentions (note_id, user_id, created_at) VALUES (?1, ?2, ?3)
+                     ON CONFLICT DO NOTHING",
+                    params![&note_id, uid, &now],
+                )
+                .await?;
+        }
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::testsupport::TestDb;
     use crate::users;
 
-    fn new_test_repo() -> (tempfile::TempDir, Repository, users::Repository) {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let db =
-            crate::db::Db::open(dir.path().join("test.db").to_str().unwrap()).expect("open db");
-        (dir, Repository::new(db.clone()), users::Repository::new(db))
+    async fn new_test_repos() -> (TestDb, Repository, users::Repository) {
+        let db = TestDb::open().await;
+        let repo = Repository::new(db.handle());
+        let users_repo = users::Repository::new(db.handle());
+        (db, repo, users_repo)
     }
 
     async fn must_create_user(repo: &users::Repository, subject: &str) -> users::User {
@@ -423,7 +388,7 @@ mod tests {
 
     #[tokio::test]
     async fn note_lifecycle() {
-        let (_dir, repo, users_repo) = new_test_repo();
+        let (_db, repo, users_repo) = new_test_repos().await;
         let owner = must_create_user(&users_repo, "owner").await;
 
         let n = repo
@@ -461,7 +426,7 @@ mod tests {
             .await
             .expect("update with stale version should not error")
         {
-            UpdateOutcome::Conflict(_) => {}
+            UpdateOutcome::Conflict(current) => assert_eq!(current.version, 2),
             UpdateOutcome::Updated(_) => panic!("expected a version conflict"),
         }
 
@@ -474,7 +439,7 @@ mod tests {
 
     #[tokio::test]
     async fn sharing_visibility() {
-        let (_dir, repo, users_repo) = new_test_repo();
+        let (_db, repo, users_repo) = new_test_repos().await;
         let owner = must_create_user(&users_repo, "owner").await;
         let other = must_create_user(&users_repo, "other").await;
 
@@ -530,8 +495,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn owner_sees_their_own_note_as_owner() {
+        let (_db, repo, users_repo) = new_test_repos().await;
+        let owner = must_create_user(&users_repo, "owner").await;
+
+        repo.create(owner.id.clone(), "Mine".to_string(), "x".to_string())
+            .await
+            .expect("create");
+
+        let page = repo
+            .list_for_viewer(owner.id, String::new(), 12)
+            .await
+            .expect("list_for_viewer");
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].my_permission, Permission::Owner);
+        assert!(!page.items[0].is_public);
+    }
+
+    #[tokio::test]
     async fn public_share_uses_unguessable_token() {
-        let (_dir, repo, users_repo) = new_test_repo();
+        let (_db, repo, users_repo) = new_test_repos().await;
         let owner = must_create_user(&users_repo, "owner").await;
 
         let n = repo
@@ -557,6 +540,19 @@ mod tests {
             "public token must not be derived from the note's own ID"
         );
 
+        // The note now reports as public everywhere it's surfaced.
+        assert!(
+            repo.get_by_id(n.id.clone())
+                .await
+                .expect("get_by_id")
+                .is_public
+        );
+        let page = repo
+            .list_for_viewer(owner.id, String::new(), 12)
+            .await
+            .expect("list_for_viewer");
+        assert!(page.items[0].is_public);
+
         let view = repo
             .get_by_public_token(ps.token.clone())
             .await
@@ -574,7 +570,7 @@ mod tests {
 
     #[tokio::test]
     async fn mentions_are_notified_only_once() {
-        let (_dir, repo, users_repo) = new_test_repo();
+        let (_db, repo, users_repo) = new_test_repos().await;
         let owner = must_create_user(&users_repo, "owner").await;
         let mentioned = must_create_user(&users_repo, "mentioned").await;
 
@@ -608,7 +604,7 @@ mod tests {
 
     #[tokio::test]
     async fn list_for_viewer_returns_full_markdown() {
-        let (_dir, repo, users_repo) = new_test_repo();
+        let (_db, repo, users_repo) = new_test_repos().await;
         let owner = must_create_user(&users_repo, "owner").await;
 
         let body =
@@ -630,11 +626,11 @@ mod tests {
 
     #[tokio::test]
     async fn list_for_viewer_cursor_pagination() {
-        let (_dir, repo, users_repo) = new_test_repo();
+        let (_db, repo, users_repo) = new_test_repos().await;
         let owner = must_create_user(&users_repo, "owner").await;
 
         const TOTAL: usize = 5;
-        let mut ids = std::collections::HashSet::new();
+        let mut ids = HashSet::new();
         for _ in 0..TOTAL {
             let n = repo
                 .create(owner.id.clone(), "Note".to_string(), "content".to_string())
@@ -645,7 +641,7 @@ mod tests {
             tokio::time::sleep(std::time::Duration::from_millis(2)).await;
         }
 
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
         let mut cursor = String::new();
         for pages in 0..=TOTAL {
             assert!(pages < TOTAL, "pagination did not terminate");
@@ -667,11 +663,6 @@ mod tests {
         }
 
         assert_eq!(seen.len(), TOTAL);
-        for id in &ids {
-            assert!(
-                seen.contains(id),
-                "note {id} was never returned by pagination"
-            );
-        }
+        assert_eq!(seen, ids);
     }
 }

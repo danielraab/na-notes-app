@@ -22,7 +22,11 @@ pub struct Config {
     pub oidc_redirect_url: String,
     pub oidc_scopes: Vec<String>,
 
-    // Database (SQLite only, see docs/decisions/0002-sqlite-only.md)
+    // Database. The URL's scheme selects the engine: "postgres://..." /
+    // "postgresql://..." connects to PostgreSQL; anything else (a bare
+    // path, "sqlite://...", or "file:...") opens a SQLite file at that
+    // path. Defaults to a local SQLite file. See ADR 0013 and
+    // docs/decisions/0002-database-abstraction-layer.md.
     pub database_url: String,
 
     // SMTP

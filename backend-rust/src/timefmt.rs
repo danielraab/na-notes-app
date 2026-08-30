@@ -1,7 +1,8 @@
 //! RFC 3339 (nanosecond) timestamp formatting shared by every module that
-//! stores a `chrono::DateTime<Utc>` as SQLite `TEXT`, mirroring
-//! backend-go's `time.RFC3339Nano` convention so on-disk timestamps stay
-//! human-readable and sortable as text.
+//! stores a `chrono::DateTime<Utc>` as a `TEXT` column, mirroring
+//! backend-go's `time.RFC3339Nano` convention so stored timestamps stay
+//! human-readable, sortable as text on either engine, and comparable across
+//! implementations (/docs/schema.md).
 
 use chrono::{DateTime, Utc};
 

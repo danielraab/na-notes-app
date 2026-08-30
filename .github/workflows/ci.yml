@@ -41,6 +41,21 @@ jobs:
     defaults:
       run:
         working-directory: backend-rust
+    # backend-rust supports SQLite and PostgreSQL as equal first-class
+    # engines, so the suite runs against both (see
+    # backend-rust/docs/decisions/0002-database-abstraction-layer.md).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -52,7 +67,12 @@ jobs:
       - run: cargo build --all-targets
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo fmt -- --check
-      - run: cargo test
+      - name: Test (SQLite)
+        run: cargo test
+      - name: Test (PostgreSQL)
+        env:
+          POSTGRES_TEST_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+        run: cargo test
       - name: Build Docker image
         run: docker build -t na-notes-backend-rust .
 

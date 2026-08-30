@@ -10,16 +10,22 @@ full. This file only adds Rust-specific notes.
 - Business rules belong in `src/notes/service.rs` / `src/users/mod.rs`,
   not in `src/httpapi` handlers — see
   [`docs/decisions/0003-module-layout.md`](docs/decisions/0003-module-layout.md).
-- Never bypass `rusqlite`'s parameterized placeholders for user-controlled
-  input.
-- Run `cargo build && cargo clippy --all-targets && cargo fmt --check &&
-  cargo test` before considering a change done.
-- This implementation only supports SQLite (see
-  [`docs/decisions/0002-sqlite-only.md`](docs/decisions/0002-sqlite-only.md))
-  — don't add PostgreSQL support without a new decision doc explaining why
-  and how (placeholder syntax, connection pooling, migration execution all
-  need re-deciding, the way `backend-go/docs/decisions/0005-postgres-support-via-pgx.md`
-  did for Go).
+- Never bypass parameterized placeholders (`?1`, `?2`, ...) for
+  user-controlled input.
+- Run `cargo build --all-targets && cargo clippy --all-targets && cargo fmt
+  --check && cargo test` before considering a change done.
+- **SQLite and PostgreSQL are both first-class engines.** All database
+  access goes through the `Backend` trait in `src/db` — see
+  [`docs/decisions/0002-database-abstraction-layer.md`](docs/decisions/0002-database-abstraction-layer.md).
+  Never add an engine conditional outside `src/db`, and never fork a query
+  per engine: write SQL both accept, with `?N` placeholders (`src/db/rebind.rs`
+  rewrites them to `$N` for PostgreSQL).
+- A database change isn't done until it's been run against **both** engines:
+  `cargo test`, then `POSTGRES_TEST_URL=... cargo test` (same suite, real
+  server — see the README). CI does both; don't rely on CI to find out.
+- Adding a third engine should mean implementing `Backend` and adding an arm
+  to `Engine::from_url` — nothing else. If a change would make that untrue,
+  that's a signal the abstraction is leaking, not a reason to special-case.
 - If a change touches `openapi/openapi.yaml` semantics (new field,
   endpoint, or behavior), update `src/httpapi/dto.rs` and the relevant
   handler together, and flag that other backend implementations need the

@@ -33,7 +33,7 @@ async fn main() {
 async fn run() -> anyhow::Result<()> {
     let cfg = Config::load().map_err(|e| anyhow::anyhow!(e))?;
 
-    let sql_db = db::Db::open(&cfg.database_url)?;
+    let sql_db = db::Db::open(&cfg.database_url).await?;
 
     let oidc = auth::Oidc::new(
         &cfg.oidc_issuer_url,
