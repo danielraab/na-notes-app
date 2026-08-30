@@ -11,7 +11,11 @@ pagination, sharing, concurrency).
 - Go 1.25, standard library `net/http` (method+path routing, no router
   dependency needed).
 - `modernc.org/sqlite` — pure-Go SQLite driver (no CGO), so the Docker
-  image builds `CGO_ENABLED=0` and needs no C toolchain at runtime.
+  image builds `CGO_ENABLED=0` and needs no C toolchain at runtime. This is
+  the default database; `github.com/jackc/pgx/v5` (also pure Go) is used
+  when `DATABASE_URL` opts into PostgreSQL instead — see
+  [ADR 0013](../docs/adr/0013-exchangeable-database-backend.md) and
+  [`docs/decisions/0005-postgres-support-via-pgx.md`](docs/decisions/0005-postgres-support-via-pgx.md).
 - `github.com/coreos/go-oidc` + `golang.org/x/oauth2` — generic OIDC
   client (authorization code + PKCE).
 - `net/smtp` (standard library) for notification emails.
@@ -25,16 +29,24 @@ choices and the internal package layout.
 cd backend-go
 cp .env.example .env   # or export the variables another way
 mkdir data
-# set DATABASE_PATH=./data/notes.db in .env
+# set DATABASE_URL=./data/notes.db in .env
 set -a
 source .env
 set +a
 go run ./cmd/server
 ```
 
-The server listens on `LISTEN_ADDR` (default `:8080`) and creates its
-SQLite file at `DATABASE_PATH` (default `./notes.db`), running migrations
-automatically on startup.
+The server listens on `LISTEN_ADDR` (default `:8080`). `DATABASE_URL`'s
+scheme selects the database engine (default a local SQLite file,
+`./notes.db`, if unset) — see
+[ADR 0013](../docs/adr/0013-exchangeable-database-backend.md):
+
+| `DATABASE_URL` | Engine |
+|---|---|
+| unset, a bare path (e.g. `./data/notes.db`), `sqlite://<path>`, or `file:<path>` | SQLite file at `<path>` |
+| `postgres://...` or `postgresql://...` | PostgreSQL |
+
+Migrations run automatically on startup either way.
 
 ## Configuration
 
@@ -56,7 +68,7 @@ and every state-changing request fails with `CSRF_REJECTED`.
 ```
 cmd/server/          # entrypoint: wires config, db, services, http server
 internal/config/      # environment variable loading
-internal/db/          # sqlite connection + embedded migrations
+internal/db/          # sqlite/postgres connection + embedded migrations
 internal/auth/         # OIDC client + session/PKCE-state storage
 internal/users/        # user accounts (created lazily on first login)
 internal/notes/        # notes domain: model, repository, service (business rules)
@@ -80,6 +92,14 @@ go test ./...
 (temp file per test) — sharing visibility, optimistic-concurrency
 conflicts, public share tokens, mention tracking, and cursor pagination
 correctness under interleaved pages.
+
+`internal/db` additionally has an opt-in PostgreSQL integration test that
+only runs when `POSTGRES_TEST_URL` is set, e.g.:
+
+```bash
+docker run --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+POSTGRES_TEST_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable go test ./internal/db/...
+```
 
 ## Docker
 

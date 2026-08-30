@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/danielraab/na-notes-app/backend-go/internal/apperr"
+	"github.com/danielraab/na-notes-app/backend-go/internal/db"
 	"github.com/danielraab/na-notes-app/backend-go/internal/randtoken"
 )
 
@@ -38,11 +39,11 @@ type OIDCRequest struct {
 }
 
 type Store struct {
-	db *sql.DB
+	db *db.DB
 }
 
-func NewStore(db *sql.DB) *Store {
-	return &Store{db: db}
+func NewStore(sqlDB *db.DB) *Store {
+	return &Store{db: sqlDB}
 }
 
 func (s *Store) CreateSession(ctx context.Context, userID string) (Session, error) {

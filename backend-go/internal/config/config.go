@@ -28,8 +28,11 @@ type Config struct {
 	OIDCRedirectURL  string
 	OIDCScopes       []string
 
-	// Database
-	DatabasePath string
+	// Database. The URL's scheme selects the engine: "postgres://..." /
+	// "postgresql://..." connects to PostgreSQL; anything else (a bare
+	// path, "sqlite://...", or "file:...") opens a SQLite file at that
+	// path. Defaults to a local SQLite file. See ADR 0013.
+	DatabaseURL string
 
 	// SMTP
 	SMTPHost     string
@@ -52,7 +55,7 @@ func Load() (*Config, error) {
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OIDCRedirectURL:  os.Getenv("OIDC_REDIRECT_URL"),
 		OIDCScopes:       splitCSV(getEnv("OIDC_SCOPES", "openid,profile,email")),
-		DatabasePath:     getEnv("DATABASE_PATH", "./notes.db"),
+		DatabaseURL:      getEnv("DATABASE_URL", "./notes.db"),
 		SMTPHost:         os.Getenv("SMTP_HOST"),
 		SMTPPort:         getEnv("SMTP_PORT", "25"),
 		SMTPUsername:     os.Getenv("SMTP_USERNAME"),

@@ -30,7 +30,7 @@ func run() error {
 		return err
 	}
 
-	sqlDB, err := db.Open(cfg.DatabasePath)
+	sqlDB, err := db.Open(cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}

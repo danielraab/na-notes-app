@@ -22,6 +22,10 @@ The short version:
   implementation folder on purpose (ADR 0003).
 - `docs/adr/` — cross-cutting architecture decisions that apply to every
   implementation (auth, pagination, concurrency, sharing, etc).
+- `docs/schema.md` — a non-binding reference data model, so implementations
+  stay close enough to make migrating data between them tractable
+  (ADR 0014). Not a tested contract — each backend still owns its own
+  actual schema (ADR 0006).
 - Each implementation folder has its own `README.md` (how to run it) and
   `docs/decisions/` (choices specific to that implementation, e.g. "why
   this Go router").
@@ -53,6 +57,7 @@ See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 .
 ├── openapi/                 # shared API contract (source of truth)
 ├── docs/adr/                # cross-cutting architecture decisions
+├── docs/schema.md            # reference data model (non-binding, see ADR 0014)
 ├── backend-go/               # Go backend implementation
 ├── frontend-react/           # React frontend implementation
 ├── docker-compose.yml        # runs one backend + one frontend + db volume
@@ -96,7 +101,7 @@ backend ones:
 | `ALLOWED_ORIGINS` | CORS allow-list, must include the frontend's origin |
 | `SESSION_SECRET` | Server-side session signing/encryption key |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Outgoing mail for share/mention notifications |
-| `DATABASE_PATH` | SQLite file path inside the backend container |
+| `DATABASE_URL` | Database location; scheme selects the engine — a path/`sqlite://`/`file:` value for SQLite (default), or `postgres://...` for PostgreSQL (ADR 0013) |
 
 ## Contributing a new implementation
 
@@ -106,8 +111,12 @@ backend ones:
 3. Implement `openapi/openapi.yaml` exactly — validate with
    `npx @stoplight/spectral-cli lint openapi/openapi.yaml` and add
    contract tests.
-4. Add a `Dockerfile` and wire a CI job (see `.github/workflows/ci.yml`).
-5. Do not change other implementations to make yours easier — the point
+4. Model your schema close to [`docs/schema.md`](docs/schema.md) (ADR
+   0014) — it's not enforced, but staying close keeps migrating data
+   between implementations tractable. Note any deliberate deviation in
+   your own `docs/decisions/`.
+5. Add a `Dockerfile` and wire a CI job (see `.github/workflows/ci.yml`).
+6. Do not change other implementations to make yours easier — the point
    of this repo is that they stay independent and swappable.
 
 ## License

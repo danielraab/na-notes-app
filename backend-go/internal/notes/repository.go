@@ -9,17 +9,18 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/danielraab/na-notes-app/backend-go/internal/apperr"
+	"github.com/danielraab/na-notes-app/backend-go/internal/db"
 	"github.com/danielraab/na-notes-app/backend-go/internal/randtoken"
 )
 
 const publicShareTokenBytes = 16 // 128 bits of entropy, see ADR 0009
 
 type Repository struct {
-	db *sql.DB
+	db *db.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(sqlDB *db.DB) *Repository {
+	return &Repository{db: sqlDB}
 }
 
 func (r *Repository) Create(ctx context.Context, ownerID, title, content string) (Note, error) {
@@ -330,7 +331,7 @@ func (r *Repository) AddMentions(ctx context.Context, noteID string, userIDs []s
 	now := fmtTime(time.Now().UTC())
 	for _, uid := range userIDs {
 		if _, err := r.db.ExecContext(ctx,
-			`INSERT OR IGNORE INTO note_mentions (note_id, user_id, created_at) VALUES (?, ?, ?)`,
+			`INSERT INTO note_mentions (note_id, user_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
 			noteID, uid, now,
 		); err != nil {
 			return err
