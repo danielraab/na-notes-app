@@ -16,8 +16,8 @@ The short version:
   Owns its own SQLite database; the frontend never touches the database
   directly. Implements the OpenAPI contract exactly.
 - `frontend-<tech>/` — one frontend implementation (e.g. `frontend-react`,
-  `frontend-svelte`, `frontend-vue`). Talks to whichever backend is
-  configured, only via the REST API.
+  `frontend-svelte`, `frontend-vue`, `frontend-angular`). Talks to
+  whichever backend is configured, only via the REST API.
 - `openapi/openapi.yaml` — the single API contract every backend
   implements and every frontend consumes. Lives outside every
   implementation folder on purpose (ADR 0003).
@@ -65,6 +65,7 @@ See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 ├── frontend-react/           # React frontend implementation
 ├── frontend-svelte/          # Svelte frontend implementation
 ├── frontend-vue/             # Vue frontend implementation
+├── frontend-angular/         # Angular frontend implementation
 ├── docker-compose.yml        # runs one backend + one frontend + db volume
 └── .github/workflows/ci.yml  # builds/tests each implementation independently
 ```
@@ -80,18 +81,20 @@ docker compose up --build
 Frontend: http://localhost:5173 · Backend: http://localhost:8080
 
 See `backend-go/README.md`, `frontend-react/README.md`,
-`frontend-svelte/README.md`, and `frontend-vue/README.md` for running
-each implementation standalone (without Docker) for local development.
+`frontend-svelte/README.md`, `frontend-vue/README.md`, and
+`frontend-angular/README.md` for running each implementation standalone
+(without Docker) for local development.
 
 ### Trying a different backend or frontend
 
 `docker-compose.yml` builds whatever is at `backend-go/` and
 `frontend-react/`. To try a different implementation — e.g. swap in
-`frontend-svelte/` or `frontend-vue/`, which both have the same feature
-set as `frontend-react` with a different look and color scheme — point
-the relevant service's `build.context` (and `context`'s Dockerfile) at
-the other folder; every implementation exposes the same port conventions
-and environment variables, so no other change is needed.
+`frontend-svelte/`, `frontend-vue/`, or `frontend-angular/`, which all
+have the same feature set as `frontend-react` with a different look and
+color scheme — point the relevant service's `build.context` (and
+`context`'s Dockerfile) at the other folder; every implementation exposes
+the same port conventions and environment variables, so no other change
+is needed.
 
 ## Configuration
 
@@ -112,8 +115,11 @@ backend ones:
 | `DATABASE_URL` | Database location; scheme selects the engine — a path/`sqlite://`/`file:` value for SQLite (default), or `postgres://...` for PostgreSQL (ADR 0013) |
 
 Frontend variable names are also shared in spirit, but each frontend only
-needs `VITE_API_BASE_URL` — see `frontend-react/.env.example` /
-`frontend-svelte/.env.example` / `frontend-vue/.env.example`.
+needs one backend-URL variable — see `frontend-react/.env.example` /
+`frontend-svelte/.env.example` / `frontend-vue/.env.example`
+(`VITE_API_BASE_URL`) and `frontend-angular/.env.example`
+(`NG_APP_API_BASE_URL`, Angular's build-time config works differently —
+see `frontend-angular/docs/decisions/0002-build-time-api-url.md`).
 
 ## Contributing a new implementation
 

@@ -1,0 +1,7 @@
+<div
+  #container
+  class="markdown-view"
+  [class.markdown-view--card]="variant() === 'card'"
+  (click)="handleClick($event)"
+  [innerHTML]="html()"
+></div>

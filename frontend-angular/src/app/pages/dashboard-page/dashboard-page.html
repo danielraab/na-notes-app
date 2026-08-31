@@ -1,0 +1,17 @@
+@if (auth.loading()) {
+  <p class="page">Loading…</p>
+} @else {
+  <div class="page">
+    @if (auth.user()) {
+      <app-note-grid />
+    } @else {
+      <div class="callout">
+        <p>Sign in to create your own notes, share them, and mention teammates.</p>
+        <button type="button" class="btn" (click)="auth.login('/')">Log in</button>
+      </div>
+      <div class="preview-row">
+        <app-note-preview />
+      </div>
+    }
+  </div>
+}

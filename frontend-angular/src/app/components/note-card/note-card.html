@@ -1,0 +1,23 @@
+<div class="note-card" (click)="onCardClick($event)">
+  <h3 class="note-card-title">
+    <a [routerLink]="['/notes', note().id]">{{ note().title }}</a>
+  </h3>
+  <div #clamp class="note-card-clamp">
+    <app-markdown-view
+      [markdown]="content()"
+      variant="card"
+      [interactive]="canEdit()"
+      (toggleTask)="onToggleTask($event)"
+    />
+    @if (isClamped()) {
+      <div class="note-card-fade"></div>
+    }
+  </div>
+  <div class="note-card-meta">
+    <span>{{ permissionLabel() }}</span>
+    @if (note().isPublic) {
+      <span>Public</span>
+    }
+    <time [attr.datetime]="note().updatedAt">{{ note().updatedAt | date }}</time>
+  </div>
+</div>
