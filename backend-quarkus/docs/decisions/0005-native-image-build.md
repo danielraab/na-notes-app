@@ -29,7 +29,7 @@ documented/generated conventions closely) but **not run**.
 
 - `application.properties` sets `%native.quarkus.native.container-build=true`
   and a pinned Mandrel builder image
-  (`quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21`), so
+  (`quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25`), so
   `./gradlew build -Dquarkus.package.type=native` builds the native
   executable inside a container rather than requiring a local GraalVM
   install — the same default trade-off `quarkus create app` makes.
@@ -37,7 +37,7 @@ documented/generated conventions closely) but **not run**.
   `Dockerfile` stays JVM-mode). It is a two-stage build symmetric with the
   JVM `Dockerfile`: the first stage runs `./gradlew build` **inside the
   pinned Mandrel builder image**
-  (`quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21`) to produce
+  (`quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25`) to produce
   the native `build/*-runner`, overriding
   `-Dquarkus.native.container-build=false` because native-image runs
   directly in that stage rather than in a nested container; the second
@@ -82,6 +82,13 @@ documented/generated conventions closely) but **not run**.
   Docker daemon or local GraalVM/Mandrel, and treat any reflection-related
   failure in the nimbus-jose-jwt code path as expected-possible rather
   than surprising.
+- The Mandrel builder-image tag is pinned in two places that must move
+  together on every Quarkus upgrade: `%native.quarkus.native.builder-image`
+  in `application.properties` and the `FROM ... AS build` line in
+  `Dockerfile.native`. Quarkus enforces an exact Mandrel major it supports
+  and fails the native build with "Out of date version of GraalVM or
+  Mandrel detected" if the image lags — this happened on the 3.39.1 bump
+  (`jdk-21` / Mandrel 23.1 → `jdk-25` / Mandrel 25.0).
 - If nimbus-jose-jwt does need hand-written reflection config, it belongs
   in `src/main/resources/META-INF/native-image/` as a
   `reflect-config.json` (or via `@RegisterForReflection` on the specific

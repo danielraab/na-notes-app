@@ -18,7 +18,7 @@
 # give the Docker builder ~4GB+ of memory. JVM mode (Dockerfile) remains the
 # default and the only variant verified in this repo's CI.
 
-FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 AS build
+FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25 AS build
 USER root
 WORKDIR /src
 COPY gradlew ./

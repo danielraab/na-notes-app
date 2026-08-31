@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -11,12 +12,12 @@ repositories {
     mavenLocal()
 }
 
-val quarkusPlatformGroupId: String by project
-val quarkusPlatformArtifactId: String by project
-val quarkusPlatformVersion: String by project
-val nimbusJoseJwtVersion: String by project
-val sqliteJdbcVersion: String by project
-val kotlinVersion: String by project
+val quarkusPlatformGroupId = providers.gradleProperty("quarkusPlatformGroupId").get()
+val quarkusPlatformArtifactId = providers.gradleProperty("quarkusPlatformArtifactId").get()
+val quarkusPlatformVersion = providers.gradleProperty("quarkusPlatformVersion").get()
+val nimbusJoseJwtVersion = providers.gradleProperty("nimbusJoseJwtVersion").get()
+val sqliteJdbcVersion = providers.gradleProperty("sqliteJdbcVersion").get()
+val kotlinVersion = providers.gradleProperty("kotlinVersion").get()
 
 // The Quarkus BOM's enforcedPlatform otherwise wins version conflicts for
 // the Kotlin libraries too, which can pull in artifacts newer than this
@@ -70,6 +71,12 @@ allOpen {
 tasks.withType<KotlinCompile> {
     compilerOptions {
         javaParameters = true
+        // Match `java { targetCompatibility }` above. Without this, the Kotlin
+        // plugin infers its target from the JDK running Gradle (Java 25 on some
+        // dev machines, which Kotlin 2.2 caps at 24), and Gradle 9's Java/Kotlin
+        // target-consistency check then fails the build. Docker images build on
+        // JDK 21, so 21 is the real floor regardless.
+        jvmTarget = JvmTarget.JVM_21
         // Opts into Kotlin's upcoming default: a constructor-parameter
         // annotation with no explicit use-site target (e.g. @ConfigProperty
         // in AppConfig) applies to both the parameter and the backing
