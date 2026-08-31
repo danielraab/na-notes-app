@@ -87,9 +87,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-          cache: maven
-          cache-dependency-path: backend-quarkus/pom.xml
-      - run: mvn -B -q clean package
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew build
       - name: Build Docker image
         run: docker build -t na-notes-backend-quarkus .
 
