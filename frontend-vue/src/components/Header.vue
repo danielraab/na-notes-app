@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { API_BASE_URL } from '../api/client';
 import { useAuth } from '../auth/auth';
 
 const { state: auth, login, logout } = useAuth();
@@ -43,15 +44,18 @@ function handleLogout() {
 <template>
   <header class="site-header">
     <div class="site-header-inner">
-      <RouterLink to="/" class="brand">
-        <span class="brand-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </svg>
-        </span>
-        <span class="brand-name">NA Notes</span>
-      </RouterLink>
+      <div class="brand-group">
+        <RouterLink to="/" class="brand">
+          <span class="brand-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </span>
+          <span class="brand-name">NA Notes</span>
+        </RouterLink>
+        <span class="brand-meta">Vue &middot; {{ API_BASE_URL }}</span>
+      </div>
 
       <nav class="header-nav">
         <template v-if="!auth.loading && auth.user">

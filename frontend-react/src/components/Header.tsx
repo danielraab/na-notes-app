@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { API_BASE_URL } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 
 function initials(name: string): string {
@@ -101,28 +102,34 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-canvas/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-[960px] items-center justify-between px-4">
-        <Link
-          to="/"
-          className="group flex items-center gap-2 text-fg no-underline"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-fg transition-transform group-hover:scale-105">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
+        <div className="flex min-w-0 items-center gap-2">
+          <Link
+            to="/"
+            className="group flex items-center gap-2 text-fg no-underline"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-fg transition-transform group-hover:scale-105">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </span>
+            <span className="text-base font-semibold tracking-tight">NA Notes</span>
+          </Link>
+
+          <span className="hidden truncate text-xs text-fg-muted sm:inline">
+            React &middot; {API_BASE_URL}
           </span>
-          <span className="text-base font-semibold tracking-tight">NA Notes</span>
-        </Link>
+        </div>
 
         <nav className="flex items-center gap-2 sm:gap-3">
           {!loading && user && (
