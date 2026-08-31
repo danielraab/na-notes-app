@@ -1,21 +1,23 @@
 # syntax=docker/dockerfile:1
 
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM eclipse-temurin:21-jdk-jammy AS build
 WORKDIR /src
-COPY pom.xml ./
-RUN mvn -q -B dependency:go-offline
+COPY gradlew ./
+COPY gradle ./gradle
+COPY gradle.properties settings.gradle.kts build.gradle.kts ./
+RUN ./gradlew --no-daemon help >/dev/null
 COPY src ./src
-RUN mvn -q -B -DskipTests package
+RUN ./gradlew --no-daemon build -x test
 
 FROM eclipse-temurin:21-jre-jammy
 RUN apt-get update && apt-get install -y --no-install-recommends wget \
     && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --create-home --home-dir /app app
 WORKDIR /app
-COPY --from=build /src/target/quarkus-app/lib/ ./lib/
-COPY --from=build /src/target/quarkus-app/*.jar ./
-COPY --from=build /src/target/quarkus-app/app/ ./app/
-COPY --from=build /src/target/quarkus-app/quarkus/ ./quarkus/
+COPY --from=build /src/build/quarkus-app/lib/ ./lib/
+COPY --from=build /src/build/quarkus-app/*.jar ./
+COPY --from=build /src/build/quarkus-app/app/ ./app/
+COPY --from=build /src/build/quarkus-app/quarkus/ ./quarkus/
 RUN mkdir -p /data && chown app:app /data
 VOLUME ["/data"]
 ENV DATABASE_URL=/data/notes.db

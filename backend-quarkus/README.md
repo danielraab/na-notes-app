@@ -1,6 +1,6 @@
 # backend-quarkus
 
-Quarkus (Java) implementation of the NA Notes backend. Implements
+Quarkus (Kotlin) implementation of the NA Notes backend. Implements
 [`/openapi/openapi.yaml`](../openapi/openapi.yaml) exactly — see the root
 [`README.md`](../README.md) and [`/docs/adr`](../docs/adr) for the
 cross-cutting rules this implementation follows (auth, CSRF/CORS,
@@ -8,9 +8,10 @@ pagination, sharing, concurrency).
 
 ## Stack
 
-- Java 21, [Quarkus](https://quarkus.io) 3.39, Maven.
-- `quarkus-rest` + `quarkus-rest-jackson` — JAX-RS resources, Jackson JSON
-  mapping.
+- Kotlin (JVM target 21), [Quarkus](https://quarkus.io) 3.39, Gradle
+  (Kotlin DSL, wrapper committed — `./gradlew`).
+- `quarkus-rest` + `quarkus-rest-jackson` + `quarkus-kotlin` — JAX-RS
+  resources, Jackson JSON mapping with Kotlin data-class support.
 - `org.xerial:sqlite-jdbc` — plain JDBC over SQLite, no ORM. This is the
   only supported database engine (see
   [`docs/decisions/0001-plain-jdbc-and-sqlite.md`](docs/decisions/0001-plain-jdbc-and-sqlite.md)).
@@ -22,8 +23,12 @@ pagination, sharing, concurrency).
 - `quarkus-mailer` for notification emails.
 
 See [`docs/decisions/`](docs/decisions) for the reasoning behind these
-choices and the internal package layout
-([`0003-package-layout.md`](docs/decisions/0003-package-layout.md)).
+choices, the internal package layout
+([`0003-package-layout.md`](docs/decisions/0003-package-layout.md)), the
+Kotlin/Gradle rewrite from this implementation's original Java/Maven form
+([`0004-kotlin-and-gradle.md`](docs/decisions/0004-kotlin-and-gradle.md)),
+and native-image support
+([`0005-native-image-build.md`](docs/decisions/0005-native-image-build.md)).
 
 ## Running locally (without Docker)
 
@@ -34,17 +39,17 @@ set -a
 source .env
 set +a
 export DATABASE_URL=./notes.db
-mvn quarkus:dev
+./gradlew quarkusDev
 ```
 
 The server listens on `LISTEN_ADDR` (default `:8080`, bridged onto
 Quarkus's own `quarkus.http.port` — see
-[`ListenAddrConfigSource`](src/main/java/app/nanotes/backend/config/ListenAddrConfigSource.java)).
+[`ListenAddrConfigSource`](src/main/kotlin/app/nanotes/backend/config/ListenAddrConfigSource.kt)).
 Migrations run automatically on startup.
 
-`mvn quarkus:dev` starts Quarkus dev mode (live reload); for a plain run
-without dev-mode tooling, use `mvn quarkus:run` or build and run the jar
-directly (see Docker section below).
+`./gradlew quarkusDev` starts Quarkus dev mode (live reload); for a plain
+run without dev-mode tooling, use `./gradlew quarkusRun` or build and run
+the jar directly (see Docker section below).
 
 ## Configuration
 
@@ -71,7 +76,7 @@ supports SQLite (ADR 0013 makes that opt-in, see
 ## Project layout
 
 ```
-src/main/java/app/nanotes/backend/
+src/main/kotlin/app/nanotes/backend/
   config/       environment variable loading
   db/           the single JDBC connection + migrations
   auth/         OIDC client + session/PKCE-state storage
@@ -82,19 +87,19 @@ src/main/java/app/nanotes/backend/
   apperr/       sentinel domain exceptions, mapped to HTTP status in web/
   randtoken/    CSPRNG token generation (sessions, CSRF, share links)
 src/main/resources/
-  application.properties     Quarkus config (CORS, mailer, ...)
+  application.properties     Quarkus config (CORS, mailer, native, ...)
   db/migrations/              forward-only SQL migrations + index.txt
 ```
 
 `web` is the only package that knows about HTTP; `notes`/`users`/`auth`
 have no `jakarta.ws.rs` dependency, so they're straightforward to unit
 test directly against a temp SQLite file (see
-`src/test/java/**/*RepositoryTest.java`).
+`src/test/kotlin/**/*RepositoryTest.kt`).
 
 ## Testing
 
 ```bash
-mvn test
+./gradlew test
 ```
 
 `notes`/`users` have repository-level tests that exercise real SQLite (a
@@ -106,27 +111,46 @@ migration-file statement splitter directly.
 
 ## Docker
 
+### JVM mode (default)
+
 ```bash
 docker build -t na-notes-backend-quarkus .
 docker run --rm -p 8080:8080 --env-file .env -v notes-data:/data na-notes-backend-quarkus
 ```
 
-The image is a multi-stage build: `mvn package` produces a Quarkus
-fast-jar (`target/quarkus-app/`), copied into a plain
+The image is a multi-stage build: `./gradlew build` produces a Quarkus
+fast-jar (`build/quarkus-app/`), copied into a plain
 `eclipse-temurin:21-jre-jammy` image and run as a non-root user.
 `/healthz` is used for the container `HEALTHCHECK`.
+
+### Native image (opt-in, unverified — see ADR 0005)
+
+```bash
+./gradlew build -Dquarkus.package.type=native   # needs Docker (container-build) or local GraalVM/Mandrel
+docker build -f Dockerfile.native -t na-notes-backend-quarkus-native .
+docker run --rm -p 8080:8080 --env-file .env -v notes-data:/data na-notes-backend-quarkus-native
+```
+
+Trades JVM-mode's ~2s startup / ~150–250MB RSS for GraalVM/Mandrel's
+single-digit-millisecond startup and tens-of-MB RSS — this is what people
+usually mean by "the resource-saving Quarkus setup." **Configured but not
+run end-to-end in this repository's development environment** (no working
+Docker daemon or local GraalVM here) — read
+[`docs/decisions/0005-native-image-build.md`](docs/decisions/0005-native-image-build.md)
+before relying on it; `com.nimbusds:nimbus-jose-jwt`'s native-image
+reflection needs in particular haven't been proven.
 
 ## Security notes specific to this implementation
 
 - Session IDs, CSRF tokens, OIDC `state`, PKCE `code_verifier`, and public
   share tokens are all generated via `app.nanotes.backend.randtoken.RandToken`
-  (`java.security.SecureRandom`). Never use `java.util.Random` for any of
-  these.
+  (`java.security.SecureRandom`). Never use `kotlin.random.Random` for any
+  of these.
 - Every `SELECT`/`INSERT`/`UPDATE`/`DELETE` goes through
   `app.nanotes.backend.db.Database`'s parameterized `?` placeholders —
   never string-concatenate user input into SQL.
 - CSRF token comparison uses a constant-time comparison
-  (`java.security.MessageDigest.isEqual`), not `String.equals`.
+  (`java.security.MessageDigest.isEqual`), not `String ==`.
 - The public note endpoint (`GET /api/public/notes/{token}`) intentionally
   omits owner identity and note ID from its response — see
   [ADR 0009](../docs/adr/0009-public-share-random-token.md).

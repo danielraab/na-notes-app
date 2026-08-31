@@ -57,3 +57,7 @@ directly in a thin repository layer.
   either introduce a driver-dispatch layer like `backend-go`'s
   `internal/db.Open`/`rebind.go`, or a Quarkiverse SQLite datasource
   extension plus Agroal — neither exists yet.
+- A pleasant surprise for `docs/decisions/0005-native-image-build.md`:
+  `org.xerial:sqlite-jdbc` ships its own GraalVM `Feature` for
+  native-image support, so this choice didn't cost anything extra when
+  native-image support was added later.

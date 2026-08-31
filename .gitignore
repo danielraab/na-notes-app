@@ -15,8 +15,10 @@ backend-rust/*.db-journal
 backend-rust/*.db-wal
 backend-rust/*.db-shm
 
-# Java / Quarkus
-backend-quarkus/target/
+# Kotlin / Gradle / Quarkus
+backend-quarkus/build/
+backend-quarkus/.gradle/
+backend-quarkus/.kotlin/
 backend-quarkus/*.db
 backend-quarkus/*.db-journal
 backend-quarkus/*.db-wal

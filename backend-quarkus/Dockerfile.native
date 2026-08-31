@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+#
+# Builds and runs backend-quarkus as a GraalVM/Mandrel native executable
+# instead of on the JVM — see docs/decisions/0004-native-image-build.md for
+# why (fast startup, low memory) and its one open risk (unverified in this
+# environment; SQLite via org.xerial:sqlite-jdbc ships its own GraalVM
+# Feature for native-image, but nimbus-jose-jwt's native-image compatibility
+# has not been proven end-to-end here).
+#
+# This Dockerfile does NOT compile the native executable itself (a
+# container-in-container build is impractical here) — it expects
+# `./gradlew build -Dquarkus.package.type=native` (container-build=true by
+# default for the %native profile, see application.properties) to have
+# already produced build/*-runner. Run that first, then:
+#   docker build -f Dockerfile.native -t na-notes-backend-quarkus-native .
+
+FROM quay.io/quarkus/quarkus-micro-image:2.0
+WORKDIR /app
+# No useradd/chown tooling in this minimal image — make /data writable by
+# any non-root UID instead of creating a dedicated user (arbitrary-UID
+# convention, same idea UBI/OpenShift base images use).
+RUN mkdir -p /data && chmod 777 /data
+COPY build/*-runner ./application
+ENV DATABASE_URL=/data/notes.db
+ENV LISTEN_ADDR=:8080
+EXPOSE 8080
+# quarkus-micro-image has no shell/package manager to create a dedicated user
+# with, but does ship the numeric "1001" non-root user UBI base images use.
+USER 1001
+ENTRYPOINT ["/app/application"]
