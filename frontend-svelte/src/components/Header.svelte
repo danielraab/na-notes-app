@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { API_BASE_URL } from '../api/client';
   import { auth } from '../auth/auth.svelte';
   import { link, navigate } from '../lib/router';
 
@@ -41,15 +42,18 @@
 
 <header class="site-header">
   <div class="site-header-inner">
-    <a href="/" class="brand" use:link>
-      <span class="brand-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
-      </span>
-      <span class="brand-name">NA Notes</span>
-    </a>
+    <div class="brand-group">
+      <a href="/" class="brand" use:link>
+        <span class="brand-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </span>
+        <span class="brand-name">NA Notes</span>
+      </a>
+      <span class="brand-meta">Svelte &middot; {API_BASE_URL}</span>
+    </div>
 
     <nav class="header-nav">
       {#if !auth.loading && auth.user}

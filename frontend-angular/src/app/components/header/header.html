@@ -1,15 +1,18 @@
 <header class="site-header">
   <div class="site-header-inner">
-    <a routerLink="/" class="brand">
-      <span class="brand-mark">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
-          <path d="M14 4v6h6" />
-          <path d="M8 13h8M8 17h5" />
-        </svg>
-      </span>
-      <span class="brand-name">NA Notes</span>
-    </a>
+    <div class="brand-group">
+      <a routerLink="/" class="brand">
+        <span class="brand-mark">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+            <path d="M14 4v6h6" />
+            <path d="M8 13h8M8 17h5" />
+          </svg>
+        </span>
+        <span class="brand-name">NA Notes</span>
+      </a>
+      <span class="brand-meta">Angular &middot; {{ apiBaseUrl }}</span>
+    </div>
 
     <nav class="site-nav">
       @if (!auth.loading() && auth.user(); as user) {

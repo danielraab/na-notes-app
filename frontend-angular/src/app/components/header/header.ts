@@ -1,5 +1,6 @@
 import { Component, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { environment } from '../../../environments/environment';
 import { Auth } from '../../auth/auth';
 
 function initials(name: string): string {
@@ -18,6 +19,7 @@ function initials(name: string): string {
 export class Header {
   protected readonly auth = inject(Auth);
   protected readonly menuOpen = signal(false);
+  protected readonly apiBaseUrl = environment.apiBaseUrl;
 
   private readonly menu = viewChild<ElementRef<HTMLDivElement>>('menu');
 

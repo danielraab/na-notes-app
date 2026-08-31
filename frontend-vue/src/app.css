@@ -156,12 +156,34 @@ a {
   justify-content: space-between;
 }
 
+.brand-group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   text-decoration: none;
   color: var(--fg);
+}
+
+.brand-meta {
+  display: none;
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 480px) {
+  .brand-meta {
+    display: inline;
+  }
 }
 
 .brand-icon {
