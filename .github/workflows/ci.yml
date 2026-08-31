@@ -92,6 +92,60 @@ jobs:
       - name: Build Docker image
         run: docker build -t na-notes-backend-quarkus .
 
+  # GraalVM-native build of backend-quarkus (Dockerfile.native, see
+  # backend-quarkus/docs/decisions/0005-native-image-build.md). Native-image
+  # compilation is slow and RAM-heavy, so unlike the JVM image above this runs
+  # only on pushes to main that actually touched backend-quarkus/ — never on
+  # PRs or on pushes that changed nothing here. Each build is stamped with a
+  # per-day incremental version, YYYYMMDD-N, recorded as a git tag
+  # (backend-quarkus-native-YYYYMMDD-N) that also acts as the counter for the
+  # next build the same day.
+  backend-quarkus-native:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect backend-quarkus changes
+        id: changed
+        run: |
+          before='${{ github.event.before }}'
+          if [ -z "$before" ] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            # First push of the branch / unknown base ref — build to be safe.
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "$before" '${{ github.sha }}' \
+                 | grep -qE '^(backend-quarkus/|\.github/workflows/ci\.yml$)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No backend-quarkus changes in this push — skipping native build."
+          fi
+      - name: Generate version tag
+        id: version
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          date="$(date -u +%Y%m%d)"
+          last="$(git tag -l "backend-quarkus-native-${date}-*" \
+                    | sed "s/^backend-quarkus-native-${date}-//" \
+                    | sort -n | tail -n1)"
+          next="$(( ${last:-0} + 1 ))"
+          echo "tag=${date}-${next}" >> "$GITHUB_OUTPUT"
+          echo "Native image version: ${date}-${next}"
+      - name: Build Dockerfile.native
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: backend-quarkus
+        run: |
+          docker build -f Dockerfile.native \
+            -t "na-notes-backend-quarkus-native:${{ steps.version.outputs.tag }}" .
+      - name: Record version as a git tag
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          git tag "backend-quarkus-native-${{ steps.version.outputs.tag }}"
+          git push origin "backend-quarkus-native-${{ steps.version.outputs.tag }}"
+
   backend-python:
     runs-on: ubuntu-latest
     defaults:
