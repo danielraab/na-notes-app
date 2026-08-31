@@ -15,6 +15,13 @@ backend-rust/*.db-journal
 backend-rust/*.db-wal
 backend-rust/*.db-shm
 
+# Java / Quarkus
+backend-quarkus/target/
+backend-quarkus/*.db
+backend-quarkus/*.db-journal
+backend-quarkus/*.db-wal
+backend-quarkus/*.db-shm
+
 # Node / React
 frontend-react/node_modules/
 frontend-react/dist/

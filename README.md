@@ -61,6 +61,7 @@ See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 ├── docs/schema.md            # reference data model (non-binding, see ADR 0014)
 ├── backend-go/               # Go backend implementation
 ├── backend-rust/             # Rust backend implementation
+├── backend-quarkus/          # Quarkus (Java) backend implementation
 ├── frontend-react/           # React frontend implementation
 ├── frontend-svelte/          # Svelte frontend implementation
 ├── docker-compose.yml        # runs one backend + one frontend + db volume
