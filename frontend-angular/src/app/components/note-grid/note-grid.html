@@ -1,0 +1,16 @@
+@if (error(); as message) {
+  <p class="danger-text">{{ message }}</p>
+} @else {
+  <div class="note-grid">
+    @for (note of notes(); track note.id) {
+      <app-note-card [note]="note" />
+    }
+  </div>
+  @if (loading()) {
+    <p class="feed-status">Loading…</p>
+  }
+  @if (!loading() && notes().length === 0) {
+    <p class="feed-status">No notes yet.</p>
+  }
+}
+<div #sentinel></div>

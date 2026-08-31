@@ -1,0 +1,56 @@
+@if (!auth.loading() && !auth.user()) {
+  <div class="page">
+    <p class="stack-gap">You need to be signed in to {{ isNew() ? 'create' : 'view' }} this note.</p>
+    <button type="button" class="btn" (click)="login()">Log in</button>
+  </div>
+} @else if (loading()) {
+  <p class="page">Loading…</p>
+} @else if (error()) {
+  <p class="page danger-text">{{ error() }}</p>
+} @else {
+  <div class="page editor-page">
+    @if (conflict(); as latest) {
+      <div class="callout">
+        <p>This note was changed by someone else since you opened it. Your unsaved edits are still below.</p>
+        <button type="button" class="btn" (click)="reloadLatest()">Load the latest version (discards your changes)</button>
+      </div>
+    }
+
+    <input
+      class="field title-field"
+      [value]="title()"
+      (input)="onTitleInput($any($event.target).value)"
+      placeholder="Untitled note"
+      [disabled]="readOnly()"
+    />
+
+    @if (readOnly()) {
+      <app-markdown-view [markdown]="content()" />
+    } @else {
+      <app-markdown-editor [value]="content()" (valueChange)="onContentChange($event)" />
+    }
+
+    <div class="editor-actions">
+      @if (!readOnly()) {
+        <button type="button" class="btn btn-primary" (click)="handleSave()" [disabled]="saving() || title().trim() === ''">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      }
+      @if (canManageSharing()) {
+        <button type="button" class="btn" (click)="showShare.set(true)">Share</button>
+      }
+      @if (canDelete()) {
+        <button type="button" class="btn btn-danger" (click)="handleDelete()">Delete</button>
+      }
+      @if (justSaved()) {
+        <span role="status" class="saved-indicator">
+          <span aria-hidden="true">✓</span> Saved
+        </span>
+      }
+    </div>
+
+    @if (showShare() && note(); as current) {
+      <app-share-dialog [noteId]="current.id" (closed)="showShare.set(false)" />
+    }
+  </div>
+}

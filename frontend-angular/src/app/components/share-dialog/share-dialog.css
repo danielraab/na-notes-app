@@ -1,0 +1,82 @@
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.dialog-panel {
+  width: 100%;
+  max-width: 30rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  padding: 1.5rem;
+}
+
+.dialog-title {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.dialog-error {
+  margin-bottom: 0.75rem;
+}
+
+.dialog-section {
+  margin-bottom: 1.25rem;
+}
+
+.dialog-section-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+
+.share-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.share-search {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.share-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0;
+}
+
+.share-list-name {
+  flex: 1;
+}
+
+.share-list-permission {
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}

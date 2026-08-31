@@ -1,0 +1,61 @@
+<div class="dialog-backdrop" (click)="closed.emit()">
+  <div class="dialog-panel" (click)="$event.stopPropagation()">
+    <h2 class="dialog-title">Share note</h2>
+    @if (error(); as message) {
+      <p class="danger-text dialog-error">{{ message }}</p>
+    }
+
+    <section class="dialog-section">
+      <h3 class="dialog-section-title">Share with a person</h3>
+      <div class="share-row">
+        <input
+          type="text"
+          class="field share-search"
+          placeholder="Search by name or email"
+          [value]="selectedUser() ? selectedUser()!.displayName : query()"
+          (input)="onQueryInput($any($event.target).value)"
+        />
+        @if (results().length > 0 && !selectedUser()) {
+          <ul class="suggestion-list">
+            @for (user of results(); track user.id) {
+              <li>
+                <button type="button" class="suggestion-item" (click)="selectedUser.set(user)">
+                  {{ user.displayName }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+        <select class="field" [value]="permission()" (change)="permission.set($any($event.target).value)">
+          <option value="read">Read only</option>
+          <option value="edit">Can edit</option>
+        </select>
+        <button type="button" class="btn" (click)="handleShare()" [disabled]="!selectedUser()">Share</button>
+      </div>
+
+      <ul class="share-list">
+        @for (share of shares()?.userShares ?? []; track share.user.id) {
+          <li class="share-list-item">
+            <span class="share-list-name">{{ share.user.displayName }}</span>
+            <span class="share-list-permission">{{ share.permission === 'edit' ? 'Can edit' : 'Read only' }}</span>
+            <button type="button" class="btn" (click)="handleRevoke(share.user.id)">Remove</button>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="dialog-section">
+      <h3 class="dialog-section-title">Public link</h3>
+      @if (shares()?.publicShare; as publicShare) {
+        <div class="share-row">
+          <input type="text" class="field share-search" readonly [value]="publicShare.url" (focus)="$any($event.target).select()" />
+          <button type="button" class="btn" (click)="handleRevokePublicLink()">Revoke</button>
+        </div>
+      } @else {
+        <button type="button" class="btn" (click)="handleCreatePublicLink()">Create public link (read-only)</button>
+      }
+    </section>
+
+    <button type="button" class="btn" (click)="closed.emit()">Done</button>
+  </div>
+</div>

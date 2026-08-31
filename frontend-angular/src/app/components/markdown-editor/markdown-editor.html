@@ -1,0 +1,39 @@
+<div class="editor">
+  <div class="editor-tabs">
+    <button type="button" class="btn" [class.btn-primary]="!showPreview()" (click)="showPreview.set(false)">
+      Write
+    </button>
+    <button type="button" class="btn" [class.btn-primary]="showPreview()" (click)="showPreview.set(true)">
+      Preview
+    </button>
+  </div>
+
+  @if (showPreview()) {
+    <app-markdown-view [markdown]="value()" />
+  } @else {
+    <div class="editor-input">
+      <textarea
+        #textarea
+        class="field editor-textarea"
+        [value]="value()"
+        (input)="handleInput($event)"
+        (keyup)="handleCaretMove()"
+        (keydown)="handleKeyDown($event)"
+        (click)="handleCaretMove()"
+        placeholder="Write your note in Markdown... type @ to mention someone"
+        rows="16"
+      ></textarea>
+      @if (mentionQuery() && suggestions().length > 0) {
+        <ul class="suggestion-list">
+          @for (user of suggestions(); track user.id) {
+            <li>
+              <button type="button" class="suggestion-item" (click)="selectMention(user)">
+                {{ user.displayName }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</div>
