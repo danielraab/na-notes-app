@@ -1,18 +1,35 @@
 # syntax=docker/dockerfile:1
 #
 # Builds and runs backend-quarkus as a GraalVM/Mandrel native executable
-# instead of on the JVM — see docs/decisions/0004-native-image-build.md for
-# why (fast startup, low memory) and its one open risk (unverified in this
-# environment; SQLite via org.xerial:sqlite-jdbc ships its own GraalVM
-# Feature for native-image, but nimbus-jose-jwt's native-image compatibility
-# has not been proven end-to-end here).
+# instead of on the JVM — see docs/decisions/0005-native-image-build.md for
+# why (fast startup, low memory) and its one open risk (nimbus-jose-jwt's
+# native-image compatibility has not been proven end-to-end here).
 #
-# This Dockerfile does NOT compile the native executable itself (a
-# container-in-container build is impractical here) — it expects
-# `./gradlew build -Dquarkus.package.type=native` (container-build=true by
-# default for the %native profile, see application.properties) to have
-# already produced build/*-runner. Run that first, then:
+# Unlike the JVM Dockerfile, this is a two-stage build whose first stage IS
+# the native compile: it runs `./gradlew build` inside the same pinned
+# Mandrel builder image the Gradle `%native` profile would otherwise pull to
+# do a container build. Because native-image runs directly in that stage
+# (not in a nested container), the build overrides
+# quarkus.native.container-build=false.
+#
 #   docker build -f Dockerfile.native -t na-notes-backend-quarkus-native .
+#
+# Expect this to be slow — native-image compilation is CPU- and RAM-heavy;
+# give the Docker builder ~4GB+ of memory. JVM mode (Dockerfile) remains the
+# default and the only variant verified in this repo's CI.
+
+FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 AS build
+USER root
+WORKDIR /src
+COPY gradlew ./
+COPY gradle ./gradle
+COPY gradle.properties settings.gradle.kts build.gradle.kts ./
+RUN ./gradlew --no-daemon help >/dev/null
+COPY src ./src
+RUN ./gradlew --no-daemon build -x test \
+    -Dquarkus.native.enabled=true \
+    -Dquarkus.package.jar.enabled=false \
+    -Dquarkus.native.container-build=false
 
 FROM quay.io/quarkus/quarkus-micro-image:2.0
 WORKDIR /app
@@ -20,7 +37,7 @@ WORKDIR /app
 # any non-root UID instead of creating a dedicated user (arbitrary-UID
 # convention, same idea UBI/OpenShift base images use).
 RUN mkdir -p /data && chmod 777 /data
-COPY build/*-runner ./application
+COPY --from=build /src/build/*-runner ./application
 ENV DATABASE_URL=/data/notes.db
 ENV LISTEN_ADDR=:8080
 EXPOSE 8080

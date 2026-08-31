@@ -34,12 +34,19 @@ documented/generated conventions closely) but **not run**.
   executable inside a container rather than requiring a local GraalVM
   install — the same default trade-off `quarkus create app` makes.
 - `Dockerfile.native` is a second, separate Dockerfile (the default
-  `Dockerfile` stays JVM-mode) that only *packages* an already-built
-  `build/*-runner` native executable into `quay.io/quarkus/quarkus-micro-image`,
-  following Quarkus's own generated native-Dockerfile template. It does not
-  compile the executable itself — see the file's own header comment for
-  the two-step `./gradlew build -Dquarkus.package.type=native` then
-  `docker build -f Dockerfile.native` sequence.
+  `Dockerfile` stays JVM-mode). It is a two-stage build symmetric with the
+  JVM `Dockerfile`: the first stage runs `./gradlew build` **inside the
+  pinned Mandrel builder image**
+  (`quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21`) to produce
+  the native `build/*-runner`, overriding
+  `-Dquarkus.native.container-build=false` because native-image runs
+  directly in that stage rather than in a nested container; the second
+  stage packages the runner into `quay.io/quarkus/quarkus-micro-image`,
+  following Quarkus's own generated native-Dockerfile template. A single
+  `docker build -f Dockerfile.native .` now does the whole thing — earlier
+  revisions of this file only *packaged* an already-built runner and
+  required a separate `./gradlew build -Dquarkus.package.type=native` step
+  first (which also tripped over `.dockerignore` excluding `build/`).
 - **`org.xerial:sqlite-jdbc` (ADR 0001) ships its own GraalVM `Feature`**
   (`org.sqlite.nativeimage.SqliteJdbcFeature`, registered via a
   `META-INF/native-image/org.xerial/sqlite-jdbc/native-image.properties`
