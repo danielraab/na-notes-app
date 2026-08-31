@@ -62,6 +62,7 @@ See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 ├── backend-go/               # Go backend implementation
 ├── backend-rust/             # Rust backend implementation
 ├── backend-quarkus/          # Quarkus (Kotlin) backend implementation
+├── backend-python/           # Python (FastAPI) backend implementation
 ├── frontend-react/           # React frontend implementation
 ├── frontend-svelte/          # Svelte frontend implementation
 ├── frontend-vue/             # Vue frontend implementation
