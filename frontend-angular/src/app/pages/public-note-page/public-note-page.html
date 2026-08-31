@@ -1,0 +1,15 @@
+@if (error(); as message) {
+  <div class="page">
+    <p class="danger-text">{{ message }}</p>
+  </div>
+} @else if (!note()) {
+  <div class="page">
+    <p>Loading…</p>
+  </div>
+} @else {
+  <div class="page">
+    <p class="public-note-badge">Shared read-only note</p>
+    <h1 class="public-note-title">{{ note()!.title }}</h1>
+    <app-markdown-view [markdown]="note()!.contentMarkdown" />
+  </div>
+}

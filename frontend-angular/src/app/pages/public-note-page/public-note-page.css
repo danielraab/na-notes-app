@@ -1,0 +1,19 @@
+.public-note-badge {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius);
+  background: var(--canvas-subtle);
+  padding: 0.25rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+
+.public-note-title {
+  margin: 0 0 1rem;
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}

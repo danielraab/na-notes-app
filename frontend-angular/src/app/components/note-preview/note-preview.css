@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.note-preview {
+  cursor: default;
+  border: 1px dashed var(--line);
+  border-left: 3px dashed var(--accent);
+  border-radius: var(--radius);
+  background: var(--canvas-subtle);
+  padding: 1rem;
+}
+
+.note-preview-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.note-preview-body {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+}
