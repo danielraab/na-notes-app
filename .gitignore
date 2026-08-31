@@ -24,6 +24,19 @@ backend-quarkus/*.db-journal
 backend-quarkus/*.db-wal
 backend-quarkus/*.db-shm
 
+# Python
+backend-python/.venv/
+backend-python/__pycache__/
+backend-python/**/__pycache__/
+backend-python/.pytest_cache/
+backend-python/.mypy_cache/
+backend-python/.ruff_cache/
+backend-python/.coverage
+backend-python/*.db
+backend-python/*.db-journal
+backend-python/*.db-wal
+backend-python/*.db-shm
+
 # Node / React
 frontend-react/node_modules/
 frontend-react/dist/
