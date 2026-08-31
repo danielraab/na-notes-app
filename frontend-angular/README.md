@@ -40,8 +40,7 @@ and a different color scheme/visual style — see
 ```bash
 cd frontend-angular
 npm install
-cp src/environments/environment.example.ts src/environments/environment.ts   # edit apiBaseUrl if not localhost:8080
-npm start
+npm start   # edit src/environments/environment.ts's apiBaseUrl first if your backend isn't on localhost:8080
 ```
 
 The dev server runs on `http://localhost:4200`. It must be pointed at a
@@ -57,8 +56,9 @@ different sites and silently drops the cookie on cross-origin requests.
 ## Configuration
 
 - `src/environments/environment.ts`'s `apiBaseUrl` — the backend's API
-  base URL. Gitignored; copy `environment.example.ts` to get started.
-  Baked into the bundle at build time — rebuild to point at a different
+  base URL, committed with a `http://localhost:8080/api` default. Baked
+  into the bundle at build time — edit it (or rebuild the Docker image
+  with a different `NG_APP_API_BASE_URL`) to point at a different
   backend. See
   [`docs/decisions/0002-build-time-api-url.md`](docs/decisions/0002-build-time-api-url.md).
 
