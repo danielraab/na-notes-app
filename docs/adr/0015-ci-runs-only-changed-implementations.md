@@ -31,11 +31,15 @@ of the matrix, just less acutely.
 - `backend-quarkus-native` keeps its `github.event_name == 'push'` guard
   and now takes its "touched backend-quarkus/" signal from the `changes`
   job instead of its own `git diff` step.
-- Filtering is **strictly per folder**. A change to `openapi/**` does
-  *not* re-run the backend/frontend jobs, and neither does a change to
-  `.github/workflows/ci.yml` itself. The contract stays enforced by each
-  implementation's own contract tests when that implementation next
-  changes, and by review.
+- Filtering is **per folder, with one shared exception: this workflow
+  file**. Every filter also matches `.github/workflows/ci.yml` (via a
+  `*pipeline` YAML anchor), so a change to the pipeline itself re-runs —
+  and, on `main`, re-publishes (ADR 0016) — every implementation. A
+  pipeline change therefore can't ship having been tested against only
+  the one implementation that happened to change alongside it.
+- A change to `openapi/**` still does *not* re-run the backend/frontend
+  jobs. The contract stays enforced by each implementation's own contract
+  tests when that implementation next changes, and by review.
 
 ## Consequences
 
@@ -44,12 +48,15 @@ of the matrix, just less acutely.
 - Skipped jobs count as successful for branch-protection required
   checks, so listing the per-implementation jobs as required still works:
   an unrelated PR passes them by skipping.
-- Trade-off of the strict per-folder rule: an `openapi/**` edit or a
-  change to a job's own build steps in `ci.yml` is not validated against
-  the implementations on that PR. If a contract change needs to be
+- Trade-off of the per-folder rule: an `openapi/**` edit is not validated
+  against the implementations on that PR. If a contract change needs to be
   proven across implementations in one PR, that PR has to also touch the
   implementation folders (which it should anyway, per AGENTS.md's
-  "check whether other backends now need the same change").
+  "check whether other backends now need the same change"). A change to
+  `ci.yml` is *not* subject to this — it re-runs everything.
+- A PR that edits `ci.yml` runs the full matrix, so trivial workflow
+  tweaks are the expensive case. Acceptable: workflow changes are rare
+  next to implementation changes.
 - Adding an implementation folder now means adding both a job and a
-  matching `changes` filter + output; the header comment in `ci.yml`
-  says so.
+  matching `changes` filter (with its `*pipeline` anchor line) + output;
+  the header comment in `ci.yml` says so.

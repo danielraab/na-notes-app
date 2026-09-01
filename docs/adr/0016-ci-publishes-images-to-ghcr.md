@@ -31,7 +31,9 @@ account or secret, `GITHUB_TOKEN` can push to it with
   token.
 - **Combined with ADR 0015:** a push only builds+pushes the folders that
   changed. A one-file change to `frontend-vue` publishes a new
-  `na-notes-frontend-vue` image and nothing else.
+  `na-notes-frontend-vue` image and nothing else — but a change to
+  `.github/workflows/ci.yml` re-publishes every image (all filters match
+  the workflow file), so a pipeline change ships a full matched set.
 - **Tag:** a single per-run version `YYYYMMDD-N`, generalising the scheme
   `backend-quarkus-native` used. The `changes` gate job (ADR 0015)
   computes it once per push and records it as a git tag `build-YYYYMMDD-N`;

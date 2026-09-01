@@ -49,9 +49,10 @@ The short version:
 - Users can be @-mentioned in a note.
 - Mentioning a user or sharing a note with them sends an email (via SMTP).
 - Every backend and every frontend builds its own Docker image. CI builds
-  only the implementations whose folder changed
-  ([ADR 0015](docs/adr/0015-ci-runs-only-changed-implementations.md)) and,
-  on push to `main`, publishes each to
+  only the implementations whose folder changed — or all of them when the
+  CI workflow itself changed
+  ([ADR 0015](docs/adr/0015-ci-runs-only-changed-implementations.md)) —
+  and, on push to `main`, publishes each to
   `ghcr.io/<owner>/na-notes-<impl>:YYYYMMDD-N`
   ([ADR 0016](docs/adr/0016-ci-publishes-images-to-ghcr.md)).
 

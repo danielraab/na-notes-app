@@ -7,9 +7,10 @@ name: CI
 # add a matching filter + output to the `changes` job below.
 #
 # Every implementation job is gated on the `changes` job: it runs only
-# when that implementation's own folder changed in the push / PR
+# when that implementation's own folder — or this workflow file — changed
+# in the push / PR
 # (docs/adr/0015-ci-runs-only-changed-implementations.md). A change to a
-# single folder never triggers another folder's job.
+# single implementation folder never triggers another folder's job.
 #
 # On push to main, each job that builds an image also pushes it to
 # ghcr.io/<owner>/na-notes-<impl>, tagged with a single per-run version
@@ -51,24 +52,38 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # `*pipeline` in every filter: a change to this workflow file
+          # re-runs (and, on main, re-publishes) every implementation, so a
+          # pipeline change can't ship half-tested.
           filters: |
+            pipeline: &pipeline
+              - '.github/workflows/ci.yml'
             openapi:
+              - *pipeline
               - 'openapi/**'
             backend-go:
+              - *pipeline
               - 'backend-go/**'
             backend-rust:
+              - *pipeline
               - 'backend-rust/**'
             backend-quarkus:
+              - *pipeline
               - 'backend-quarkus/**'
             backend-python:
+              - *pipeline
               - 'backend-python/**'
             frontend-react:
+              - *pipeline
               - 'frontend-react/**'
             frontend-svelte:
+              - *pipeline
               - 'frontend-svelte/**'
             frontend-vue:
+              - *pipeline
               - 'frontend-vue/**'
             frontend-angular:
+              - *pipeline
               - 'frontend-angular/**'
       # One version string per workflow run, shared by every image pushed
       # in this run so a push that touches several folders produces a
