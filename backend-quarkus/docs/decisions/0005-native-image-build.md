@@ -59,6 +59,17 @@ documented/generated conventions closely) but **not run**.
   was the single biggest expected risk going in (JNI + native-image is
   usually a hard combination) and turned out to already be solved upstream
   as of sqlite-jdbc 3.5x.
+- **The `Feature` does *not* register the driver with `DriverManager`.**
+  A first real native run started, then failed at DB open with
+  `java.sql.SQLException: No suitable driver found for jdbc:sqlite:...` —
+  native-image strips the `ServiceLoader` lookup of
+  `META-INF/services/java.sql.Driver` that `DriverManager` relies on, and
+  nothing in this project (no `quarkus-jdbc-*` extension — it uses plain
+  JDBC per ADR 0001) re-registers it. Fixed in `db/Database.kt` by
+  calling `org.sqlite.JDBC.createConnection(url, props)` directly instead
+  of `DriverManager.getConnection` — a static class reference that also
+  keeps `org.sqlite.JDBC` reachable, and is identical behaviour on the
+  JVM (JVM build + DB/repository tests still pass).
 - **`com.nimbusds:nimbus-jose-jwt` has no bundled native-image metadata of
   its own.** It's used elsewhere in the Quarkus ecosystem (transitively by
   `quarkus-oidc`/`smallrye-jwt`), so Quarkus's own native build tooling may

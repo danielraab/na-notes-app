@@ -6,7 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import java.io.File
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
@@ -122,7 +121,13 @@ class Database private constructor(databaseUrl: String) {
                 setProperty("foreign_keys", "true")
                 setProperty("busy_timeout", "5000")
             }
-            val conn = DriverManager.getConnection("jdbc:sqlite:$path", props)
+            // Call the driver directly rather than via DriverManager: under
+            // GraalVM native-image the ServiceLoader lookup DriverManager uses
+            // to discover META-INF/services/java.sql.Driver is stripped, so
+            // "jdbc:sqlite:" otherwise fails with "No suitable driver found".
+            // The static reference also keeps org.sqlite.JDBC reachable for the
+            // native-image analysis. Identical behaviour on the JVM.
+            val conn = org.sqlite.JDBC.createConnection("jdbc:sqlite:$path", props)
             // WAL lets readers proceed during a write; single-writer is enforced
             // by serializing all access through Database.lock instead of a pool.
             conn.createStatement().use { it.execute("PRAGMA journal_mode=WAL") }
