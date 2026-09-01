@@ -37,6 +37,7 @@ WORKDIR /app
 # any non-root UID instead of creating a dedicated user (arbitrary-UID
 # convention, same idea UBI/OpenShift base images use).
 RUN mkdir -p /data && chmod 777 /data
+VOLUME ["/data"]
 COPY --from=build /src/build/*-runner ./application
 ENV DATABASE_URL=/data/notes.db
 ENV LISTEN_ADDR=:8080

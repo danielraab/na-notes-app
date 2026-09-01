@@ -95,6 +95,19 @@ documented/generated conventions closely) but **not run**.
   by switching the runtime stage to
   `quay.io/quarkus/ubi9-quarkus-micro-image:2.0`. On any future Mandrel
   bump, keep the runtime base on the same UBI major as the builder.
+- **Runtime stage now declares `VOLUME ["/data"]`**, matching the JVM
+  `Dockerfile`, after a container hit
+  `java.lang.IllegalStateException: failed to open database` at startup.
+  `/data` was already created and `chmod 777`'d at build time, so a
+  plain `docker run` with no extra flags was already writable — this
+  fixes the case where the container is started with `--read-only` (or
+  an orchestrator's `readOnlyRootFilesystem: true`), where only
+  declared-volume paths stay writable. If `failed to open database`
+  still reproduces on a container run *without* a read-only root
+  filesystem, the volume declaration wasn't the actual cause and the
+  sqlite-jdbc native-image path (see above) is the next thing to check —
+  its native library extraction happens at `java.io.tmpdir`, not
+  `/data`, and hasn't been individually verified here.
 - The Mandrel builder-image tag is pinned in two places that must move
   together on every Quarkus upgrade: `%native.quarkus.native.builder-image`
   in `application.properties` and the `FROM ... AS build` line in
