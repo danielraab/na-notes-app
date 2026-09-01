@@ -108,6 +108,16 @@ documented/generated conventions closely) but **not run**.
   sqlite-jdbc native-image path (see above) is the next thing to check —
   its native library extraction happens at `java.io.tmpdir`, not
   `/data`, and hasn't been individually verified here.
+- **`/data` is created and `chown`ed as `USER root` in the runtime
+  stage.** The `ubi9-quarkus-micro` base already ends on `USER 1001`, so
+  the earlier `RUN mkdir -p /data && chmod 777 /data` executed
+  unprivileged and produced a wrongly-owned directory. It is now
+  `USER root` → `mkdir` → `chown 1001:0` → `chmod 775` → `USER 1001`,
+  matching the JVM `Dockerfile`'s `chown app:app /data`. Note this only
+  governs the directory baked into the image (and what Docker copies into
+  a fresh *named* volume on first use); a host **bind mount** over
+  `/data` keeps the host path's ownership and must be made writable for
+  UID 1001 on the host side.
 - The Mandrel builder-image tag is pinned in two places that must move
   together on every Quarkus upgrade: `%native.quarkus.native.builder-image`
   in `application.properties` and the `FROM ... AS build` line in

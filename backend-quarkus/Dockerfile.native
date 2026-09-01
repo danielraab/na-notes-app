@@ -33,10 +33,12 @@ RUN ./gradlew --no-daemon build -x test \
 
 FROM quay.io/quarkus/ubi9-quarkus-micro-image:2.0
 WORKDIR /app
-# No useradd/chown tooling in this minimal image — make /data writable by
-# any non-root UID instead of creating a dedicated user (arbitrary-UID
-# convention, same idea UBI/OpenShift base images use).
-RUN mkdir -p /data && chmod 777 /data
+# The ubi9-quarkus-micro base already runs as USER 1001, so create and own
+# /data explicitly as root, then hand it to the runtime UID. Own it 1001:0
+# with group perms mirroring owner perms so an arbitrary non-root UID in
+# group 0 can still write (UBI/OpenShift arbitrary-UID convention).
+USER root
+RUN mkdir -p /data && chown 1001:0 /data && chmod 775 /data
 VOLUME ["/data"]
 COPY --from=build /src/build/*-runner ./application
 ENV DATABASE_URL=/data/notes.db
