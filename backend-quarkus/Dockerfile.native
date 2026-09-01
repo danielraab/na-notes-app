@@ -31,7 +31,7 @@ RUN ./gradlew --no-daemon build -x test \
     -Dquarkus.package.jar.enabled=false \
     -Dquarkus.native.container-build=false
 
-FROM quay.io/quarkus/quarkus-micro-image:2.0
+FROM quay.io/quarkus/ubi9-quarkus-micro-image:2.0
 WORKDIR /app
 # No useradd/chown tooling in this minimal image — make /data writable by
 # any non-root UID instead of creating a dedicated user (arbitrary-UID

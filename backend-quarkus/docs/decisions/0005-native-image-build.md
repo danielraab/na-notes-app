@@ -41,8 +41,11 @@ documented/generated conventions closely) but **not run**.
   the native `build/*-runner`, overriding
   `-Dquarkus.native.container-build=false` because native-image runs
   directly in that stage rather than in a nested container; the second
-  stage packages the runner into `quay.io/quarkus/quarkus-micro-image`,
-  following Quarkus's own generated native-Dockerfile template. A single
+  stage packages the runner into
+  `quay.io/quarkus/ubi9-quarkus-micro-image` — the **`ubi9-`** variant is
+  mandatory because the `jdk-25` Mandrel builder is UBI9-based (glibc
+  2.34) and the plain `quarkus-micro-image:2.0` is still UBI8 (glibc
+  2.28); see Consequences. A single
   `docker build -f Dockerfile.native .` now does the whole thing — earlier
   revisions of this file only *packaged* an already-built runner and
   required a separate `./gradlew build -Dquarkus.package.type=native` step
@@ -82,6 +85,16 @@ documented/generated conventions closely) but **not run**.
   Docker daemon or local GraalVM/Mandrel, and treat any reflection-related
   failure in the nimbus-jose-jwt code path as expected-possible rather
   than surprising.
+- **Runtime base image glibc must match the builder's.** A native build
+  run against this `Dockerfile.native` produced a working
+  `build/*-runner`, but the container failed at startup with
+  `/lib64/libc.so.6: version `GLIBC_2.33' not found (required by
+  /app/application)` — the `jdk-25` (Mandrel 25.0) builder is UBI9 and
+  dynamically links glibc 2.34, while the previously-used
+  `quay.io/quarkus/quarkus-micro-image:2.0` is UBI8 (glibc 2.28). Fixed
+  by switching the runtime stage to
+  `quay.io/quarkus/ubi9-quarkus-micro-image:2.0`. On any future Mandrel
+  bump, keep the runtime base on the same UBI major as the builder.
 - The Mandrel builder-image tag is pinned in two places that must move
   together on every Quarkus upgrade: `%native.quarkus.native.builder-image`
   in `application.properties` and the `FROM ... AS build` line in
