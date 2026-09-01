@@ -2,9 +2,15 @@
 
 ## Status
 
-Accepted, with one explicitly open risk (see Consequences) — this ADR
-documents what's wired up and, just as importantly, what has **not** been
-verified end-to-end.
+Accepted. As of 2026-09-01 the native build **has** been run end-to-end on
+a machine with Docker (`Dockerfile.native`'s Mandrel builder stage), the
+resulting 78 MB runner starts in the `ubi9-quarkus-micro-image` in ~0.18s,
+serves `/healthz`, and serves `/api/public/notes/{token}` — a real SQLite
+query — returning a correct 404 with no errors (migrations ran, WAL files
+created). Getting there took six fixes, all recorded under Consequences.
+`nimbus-jose-jwt` (the OIDC login/token-exchange code path) still has
+**not** been exercised — the smoke test used dummy OIDC config and never
+completed a login.
 
 ## Context
 
@@ -70,6 +76,26 @@ documented/generated conventions closely) but **not run**.
   of `DriverManager.getConnection` — a static class reference that also
   keeps `org.sqlite.JDBC` reachable, and is identical behaviour on the
   JVM (JVM build + DB/repository tests still pass).
+- **`randtoken.RandToken` held a `SecureRandom` in an `object` initializer.**
+  The native build failed in the analysis phase with
+  `Detected an instance of Random/SplittableRandom class in the image
+  heap ... SecureRandom ... embedded in RandToken.generate`: Quarkus
+  initializes application classes at build time, so `object RandToken`'s
+  `private val RNG = SecureRandom()` ran during image generation and
+  froze a build-time-seeded RNG into the binary, which native-image
+  rejects outright. Fixed by making it `private val RNG by lazy {
+  SecureRandom() }` so construction happens on first use at runtime. Any
+  future `SecureRandom`/`Random` held in a `object`/companion/`static`
+  initializer will hit the same wall — keep them lazy or move them to an
+  `@ApplicationScoped` bean field.
+- **Migration resources aren't embedded by default.** `Migrator` reads
+  `db/migrations/index.txt` and the `*.sql` files via
+  `ClassLoader.getResourceAsStream` (ADR 0006); native-image only embeds
+  resources it's told to, so the runner started fine but the first DB
+  access threw `db/migrations/index.txt not found on classpath`. Fixed
+  with `quarkus.native.resources.includes=db/migrations/**` in
+  `application.properties`. Any new runtime-loaded classpath resource
+  needs adding to that glob.
 - **`com.nimbusds:nimbus-jose-jwt` has no bundled native-image metadata of
   its own.** It's used elsewhere in the Quarkus ecosystem (transitively by
   `quarkus-oidc`/`smallrye-jwt`), so Quarkus's own native build tooling may

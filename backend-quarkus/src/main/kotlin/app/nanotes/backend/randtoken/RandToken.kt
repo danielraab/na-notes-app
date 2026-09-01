@@ -9,7 +9,11 @@ import java.util.Base64
  * [SecureRandom] must never be swapped for [kotlin.random.Random].
  */
 object RandToken {
-    private val RNG = SecureRandom()
+    // Constructed lazily on first use, not in the object initializer: under
+    // GraalVM native-image (Dockerfile.native) Quarkus initializes this class
+    // at build time, and a SecureRandom created then would be frozen into the
+    // image heap with a build-time seed — native-image rejects that outright.
+    private val RNG by lazy { SecureRandom() }
 
     /** Returns a URL-safe base64 string encoding [nBytes] (nBytes*8 bits) read from a CSPRNG. */
     fun generate(nBytes: Int): String {
