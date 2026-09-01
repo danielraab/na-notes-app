@@ -48,7 +48,12 @@ The short version:
   link — see [ADR 0009](docs/adr/0009-public-share-random-token.md)).
 - Users can be @-mentioned in a note.
 - Mentioning a user or sharing a note with them sends an email (via SMTP).
-- Every backend and every frontend builds its own Docker image.
+- Every backend and every frontend builds its own Docker image. CI builds
+  only the implementations whose folder changed
+  ([ADR 0015](docs/adr/0015-ci-runs-only-changed-implementations.md)) and,
+  on push to `main`, publishes each to
+  `ghcr.io/<owner>/na-notes-<impl>:YYYYMMDD-N`
+  ([ADR 0016](docs/adr/0016-ci-publishes-images-to-ghcr.md)).
 
 See [`docs/adr`](docs/adr) for the reasoning behind each of these.
 

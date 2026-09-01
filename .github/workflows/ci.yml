@@ -3,14 +3,97 @@ name: CI
 # Each implementation gets its own independent job, per /docs/adr — a
 # backend or frontend must build and test on its own, with no dependency
 # on any other implementation. When a new backend-*/frontend-* folder is
-# added, add a job for it here rather than extending an existing one.
+# added, add a job for it here rather than extending an existing one, and
+# add a matching filter + output to the `changes` job below.
+#
+# Every implementation job is gated on the `changes` job: it runs only
+# when that implementation's own folder changed in the push / PR
+# (docs/adr/0015-ci-runs-only-changed-implementations.md). A change to a
+# single folder never triggers another folder's job.
+#
+# On push to main, each job that builds an image also pushes it to
+# ghcr.io/<owner>/na-notes-<impl>, tagged with a single per-run version
+# YYYYMMDD-N that the `changes` job computes
+# (docs/adr/0016-ci-publishes-images-to-ghcr.md). Pull requests build the
+# images to check the Dockerfile but never push.
 on:
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+  # Gate job: decides which implementation jobs run (per-folder change
+  # detection) and, on push to main, mints the one version string every
+  # image pushed in this run is tagged with.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the build-YYYYMMDD-N git tag
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      openapi: ${{ steps.filter.outputs.openapi }}
+      backend-go: ${{ steps.filter.outputs.backend-go }}
+      backend-rust: ${{ steps.filter.outputs.backend-rust }}
+      backend-quarkus: ${{ steps.filter.outputs.backend-quarkus }}
+      backend-python: ${{ steps.filter.outputs.backend-python }}
+      frontend-react: ${{ steps.filter.outputs.frontend-react }}
+      frontend-svelte: ${{ steps.filter.outputs.frontend-svelte }}
+      frontend-vue: ${{ steps.filter.outputs.frontend-vue }}
+      frontend-angular: ${{ steps.filter.outputs.frontend-angular }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            openapi:
+              - 'openapi/**'
+            backend-go:
+              - 'backend-go/**'
+            backend-rust:
+              - 'backend-rust/**'
+            backend-quarkus:
+              - 'backend-quarkus/**'
+            backend-python:
+              - 'backend-python/**'
+            frontend-react:
+              - 'frontend-react/**'
+            frontend-svelte:
+              - 'frontend-svelte/**'
+            frontend-vue:
+              - 'frontend-vue/**'
+            frontend-angular:
+              - 'frontend-angular/**'
+      # One version string per workflow run, shared by every image pushed
+      # in this run so a push that touches several folders produces a
+      # matched set (na-notes-backend-go:20260901-3,
+      # na-notes-frontend-vue:20260901-3, ...). N is a per-day counter
+      # kept in git tags `build-YYYYMMDD-N`; a failed run may burn a
+      # number, which is fine. Push to main only — PRs don't push images.
+      - name: Compute per-run version and record it as a git tag
+        id: version
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          date="$(date -u +%Y%m%d)"
+          last="$(git tag -l "build-${date}-*" \
+                    | sed "s/^build-${date}-//" \
+                    | sort -n | tail -n1)"
+          next="$(( ${last:-0} + 1 ))"
+          version="${date}-${next}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Build version: ${version}"
+          git tag "build-${version}"
+          git push origin "build-${version}"
+
   openapi-lint:
+    needs: changes
+    if: ${{ needs.changes.outputs.openapi == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +103,8 @@ jobs:
       - run: npx --yes @stoplight/spectral-cli lint openapi/openapi.yaml
 
   backend-go:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend-go == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,8 +120,17 @@ jobs:
       - run: go test ./...
       - name: Build Docker image
         run: docker build -t na-notes-backend-go .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-backend-go:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-backend-go "$image"
+          docker push "$image"
 
   backend-rust:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend-rust == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -75,8 +169,17 @@ jobs:
         run: cargo test
       - name: Build Docker image
         run: docker build -t na-notes-backend-rust .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-backend-rust:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-backend-rust "$image"
+          docker push "$image"
 
   backend-quarkus:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend-quarkus == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -91,62 +194,40 @@ jobs:
       - run: ./gradlew build
       - name: Build Docker image
         run: docker build -t na-notes-backend-quarkus .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-backend-quarkus:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-backend-quarkus "$image"
+          docker push "$image"
 
   # GraalVM-native build of backend-quarkus (Dockerfile.native, see
   # backend-quarkus/docs/decisions/0005-native-image-build.md). Native-image
   # compilation is slow and RAM-heavy, so unlike the JVM image above this runs
   # only on pushes to main that actually touched backend-quarkus/ — never on
-  # PRs or on pushes that changed nothing here. Each build is stamped with a
-  # per-day incremental version, YYYYMMDD-N, recorded as a git tag
-  # (backend-quarkus-native-YYYYMMDD-N) that also acts as the counter for the
-  # next build the same day.
+  # PRs or on pushes that changed nothing here (the `changes` job supplies the
+  # "touched backend-quarkus/" signal). It always pushes, tagged with the same
+  # per-run version as every other image.
   backend-quarkus-native:
-    if: github.event_name == 'push'
+    needs: changes
+    if: ${{ github.event_name == 'push' && needs.changes.outputs.backend-quarkus == 'true' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Detect backend-quarkus changes
-        id: changed
-        run: |
-          before='${{ github.event.before }}'
-          if [ -z "$before" ] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
-            # First push of the branch / unknown base ref — build to be safe.
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$before" '${{ github.sha }}' \
-                 | grep -qE '^(backend-quarkus/|\.github/workflows/ci\.yml$)'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No backend-quarkus changes in this push — skipping native build."
-          fi
-      - name: Generate version tag
-        id: version
-        if: steps.changed.outputs.changed == 'true'
-        run: |
-          date="$(date -u +%Y%m%d)"
-          last="$(git tag -l "backend-quarkus-native-${date}-*" \
-                    | sed "s/^backend-quarkus-native-${date}-//" \
-                    | sort -n | tail -n1)"
-          next="$(( ${last:-0} + 1 ))"
-          echo "tag=${date}-${next}" >> "$GITHUB_OUTPUT"
-          echo "Native image version: ${date}-${next}"
       - name: Build Dockerfile.native
-        if: steps.changed.outputs.changed == 'true'
         working-directory: backend-quarkus
+        run: docker build -f Dockerfile.native -t na-notes-backend-quarkus-native .
+      - name: Push image to GitHub Container Registry
         run: |
-          docker build -f Dockerfile.native \
-            -t "na-notes-backend-quarkus-native:${{ steps.version.outputs.tag }}" .
-      - name: Record version as a git tag
-        if: steps.changed.outputs.changed == 'true'
-        run: |
-          git tag "backend-quarkus-native-${{ steps.version.outputs.tag }}"
-          git push origin "backend-quarkus-native-${{ steps.version.outputs.tag }}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-backend-quarkus-native:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-backend-quarkus-native "$image"
+          docker push "$image"
 
   backend-python:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend-python == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -166,8 +247,17 @@ jobs:
       - run: uv run pytest
       - name: Build Docker image
         run: docker build -t na-notes-backend-python .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-backend-python:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-backend-python "$image"
+          docker push "$image"
 
   frontend-react:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend-react == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -186,8 +276,17 @@ jobs:
       - run: npm run build
       - name: Build Docker image
         run: docker build -t na-notes-frontend-react .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-frontend-react:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-frontend-react "$image"
+          docker push "$image"
 
   frontend-svelte:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend-svelte == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -207,8 +306,17 @@ jobs:
       - run: npm run build
       - name: Build Docker image
         run: docker build -t na-notes-frontend-svelte .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-frontend-svelte:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-frontend-svelte "$image"
+          docker push "$image"
 
   frontend-vue:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend-vue == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -227,8 +335,17 @@ jobs:
       - run: npm run build
       - name: Build Docker image
         run: docker build -t na-notes-frontend-vue .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-frontend-vue:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-frontend-vue "$image"
+          docker push "$image"
 
   frontend-angular:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend-angular == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -247,3 +364,10 @@ jobs:
       - run: npm run build
       - name: Build Docker image
         run: docker build -t na-notes-frontend-angular .
+      - name: Push image to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          image="ghcr.io/${{ github.repository_owner }}/na-notes-frontend-angular:${{ needs.changes.outputs.version }}"
+          docker tag na-notes-frontend-angular "$image"
+          docker push "$image"
